@@ -185,6 +185,7 @@ export class MissionManager {
     this.phase = 'terminals';
     this.terminalsRestored = 0;
     this.bossSpawned = false;
+    this._coreTimer = undefined;
     this._bossSeq = (this._bossSeq || 0) + 1; // invalidate any pending cinematic timeout
     this.activeDefense = null;
     this.defenseSpawnTimer = 0;
@@ -264,20 +265,31 @@ export class MissionManager {
     // ---- BOSS PHASE ----
     if (this.phase === 'boss') {
       if (this.game.bossDefeated && !this.extraction) {
-        this.phase = 'extraction';
-        this.spawnExtraction();
-        this.game.ui.setObjective('REACH EXTRACTION POINT', 'ESCAPE THE SECTOR');
-        this.game.ui.showNotification('MISSION UPDATED', 'cyan');
-        this.game.ui.showNotification('EXTRACTION AVAILABLE', 'green');
-        this.game.audio.play('objective');
+        // PART 1: hold on "CORE SECURED" for 2s before extraction prompt
+        if (this._coreTimer === undefined) this._coreTimer = 2.0;
+        this._coreTimer -= dt;
+        if (this._coreTimer <= 0) {
+          this.phase = 'extraction';
+          this.spawnExtraction();
+          this.game.ui.setObjective('REACH EXTRACTION POINT', 'ESCAPE THE SECTOR');
+          this.game.ui.showNotification('MISSION UPDATED', 'cyan');
+          this.game.ui.showNotification('EXTRACTION AVAILABLE', 'green');
+          this.game.audio.play('objective');
+        }
       }
     }
 
     // ---- EXTRACTION PHASE ----
     if (this.phase === 'extraction' && this.extraction) {
-      this.extraction.group.rotation.y += dt * 1.2;
-      this.extraction.group.children.forEach(c => { if (c.material) c.material.opacity = 0.5 + Math.sin(this.game.clock * 4) * 0.3; });
-      const d = Math.hypot(this.extraction.pos.x - pPos.x, this.extraction.pos.z - pPos.z);
+      const ex = this.extraction;
+      ex.group.rotation.y += dt * 0.8;
+      // PART 6: animate the green extraction beam
+      const p = this.game.clock;
+      if (ex.beam) ex.beam.material.opacity = 0.16 + Math.sin(p * 3) * 0.08;
+      if (ex.core) ex.core.material.opacity = 0.4 + Math.sin(p * 5) * 0.2;
+      if (ex.ring) ex.ring.material.opacity = 0.6 + Math.sin(p * 4) * 0.3;
+      if (ex.disc) ex.disc.material.opacity = 0.12 + Math.sin(p * 2) * 0.06;
+      const d = Math.hypot(ex.pos.x - pPos.x, ex.pos.z - pPos.z);
       if (d < 3) {
         this.game.missionComplete();
       }
@@ -355,15 +367,35 @@ export class MissionManager {
     const pos = new THREE.Vector3(0, 0, 72);
     const g = new THREE.Group();
     g.position.copy(pos);
-    const torus = new THREE.Mesh(new THREE.TorusGeometry(2.5, 0.4, 16, 40),
-      new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.7 }));
-    const inner = new THREE.Mesh(new THREE.CircleGeometry(2.3, 32),
-      new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.3, side: THREE.DoubleSide }));
-    inner.position.z = 0.1;
-    const light = new THREE.PointLight(0x00f0ff, 3, 20, 2);
-    g.add(torus, inner, light);
+
+    // PART 2: tall green energy beam, visible across the map
+    const beam = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.4, 1.4, 80, 24, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0x39ffb0, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false, fog: false })
+    );
+    beam.position.y = 40;
+    const core = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.5, 0.5, 80, 16, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0x9dffd0, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false, fog: false })
+    );
+    core.position.y = 40;
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(3, 0.22, 12, 44),
+      new THREE.MeshBasicMaterial({ color: 0x39ffb0, transparent: true, opacity: 0.85 })
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.25;
+    const disc = new THREE.Mesh(
+      new THREE.CircleGeometry(3, 44),
+      new THREE.MeshBasicMaterial({ color: 0x39ffb0, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false })
+    );
+    disc.rotation.x = -Math.PI / 2;
+    disc.position.y = 0.06;
+    const light = new THREE.PointLight(0x39ffb0, 3, 40, 2);
+    light.position.y = 4;
+    g.add(beam, core, ring, disc, light);
     this.scene.add(g);
-    this.extraction = { group: g, pos };
+    this.extraction = { group: g, pos, beam, core, ring, disc };
   }
 
   getPrompt() {

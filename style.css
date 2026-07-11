@@ -774,6 +774,29 @@ html, body {
 #ability-hud { animation: hudIn 0.5s ease 0.2s backwards; }
 #weapon-hud { animation: hudIn 0.5s ease 0.25s backwards; }
 
+/* ---------- MISSION COMPLETE ENTRANCE (PART 6) ---------- */
+#complete .menu-inner {
+  border-color: rgba(57, 255, 176, 0.5);
+  box-shadow: 0 0 60px rgba(57, 255, 176, 0.18), inset 0 0 40px rgba(43, 140, 255, 0.06);
+  animation: mcIn 0.8s cubic-bezier(0.2, 0.8, 0.3, 1.1) backwards;
+}
+@keyframes mcIn {
+  0% { opacity: 0; transform: translateY(26px) scale(0.94); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+#complete .panel-title.success { color: var(--green); text-shadow: 0 0 18px var(--green); }
+
+/* objective-title flash when the objective changes (PART 6) */
+#obj-title.obj-flash { animation: objFlash 0.7s ease; }
+@keyframes objFlash {
+  0% { color: var(--green); text-shadow: 0 0 16px var(--green); transform: scale(1.08); }
+  100% { color: #fff; text-shadow: 0 0 8px rgba(255,255,255,0.4); transform: scale(1); }
+}
+
+/* ---------- MENU SAVE-DATA SUBS ---------- */
+.hi-sub { margin-left: 14px; }
+.hi-sub span { color: var(--gold); text-shadow: 0 0 10px var(--gold); }
+
 /* ---------- RESPONSIVE ---------- */
 @media (max-width: 760px) {
   #objective-hud { width: 220px; padding: 8px 11px; }

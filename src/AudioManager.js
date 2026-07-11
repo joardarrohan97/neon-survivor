@@ -135,6 +135,11 @@ export class AudioManager {
     return { shoot: 0.04, enemyHit: 0.04, critHit: 0.04, dryFire: 0.12, reloadComplete: 0.1, terminalUpload: 0.12, bossAttack: 0.1 };
   }
 
+  // ---- stop any continuous boss/encounter music (no looped track in this build) ----
+  stopBossMusic() {
+    // placeholder kept for parity with the extraction sequence
+  }
+
   setMuted(m) {
     this.muted = m;
     localStorage.setItem('cb_muted', m ? '1' : '0');

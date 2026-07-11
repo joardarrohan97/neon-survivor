@@ -71,10 +71,14 @@ function boot() {
     // ---- MUTE ----
     $('mute-btn').addEventListener('click', () => game.toggleMute());
 
-    // best score on menu
+    // PART 5: load saved data on game startup
     try {
-      const best = parseInt(localStorage.getItem('cb_best') || '0', 10) || 0;
-      const bs = $('best-score'); if (bs) bs.textContent = best;
+      const loadNum = (k, d) => parseInt(localStorage.getItem(k) || '0', 10) || d;
+      const loadStr = (k, d) => localStorage.getItem(k) || d;
+      const fmtTime = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s) % 60).padStart(2, '0');
+      const bs = $('best-score'); if (bs) bs.textContent = loadNum('cb_best_score', 0);
+      const bt = $('best-time'); if (bt) bt.textContent = fmtTime(loadNum('cb_best_time', 0));
+      const br = $('best-rank'); if (br) br.textContent = loadStr('cb_best_rank', 'D');
     } catch (e) {}
 
     console.log('[NEON SURVIVOR] initialized successfully.');

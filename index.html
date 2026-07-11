@@ -180,7 +180,7 @@
           <button class="btn" id="btn-how">HOW TO PLAY</button>
           <button class="btn" id="btn-settings">SETTINGS</button>
         </div>
-        <div class="hi-score">BEST SCORE: <span id="best-score">0</span></div>
+        <div class="hi-score">BEST SCORE: <span id="best-score">0</span><span class="hi-sub">FASTEST: <span id="best-time">0:00</span></span><span class="hi-sub">RANK: <span id="best-rank">D</span></span></div>
         <div class="version">AXIOM-7 // CORE BREACH v1.0</div>
       </div>
     </div>
@@ -301,12 +301,14 @@
     <div id="complete" class="overlay hidden">
       <div class="menu-inner">
         <h2 class="panel-title success">MISSION COMPLETE</h2>
+        <p class="subtitle">// OPERATION AEGIS-9 //</p>
         <div class="go-stats">
           <div class="go-row"><span>MISSION TIME</span><span id="mc-time">0:00</span></div>
           <div class="go-row"><span>ENEMIES ELIMINATED</span><span id="mc-kills">0</span></div>
           <div class="go-row"><span>BOSS DEFEATED</span><span id="mc-boss">NO</span></div>
           <div class="go-row"><span>ACCURACY</span><span id="mc-acc">0%</span></div>
           <div class="go-row"><span>DAMAGE TAKEN</span><span id="mc-dmg-taken">0</span></div>
+          <div class="go-row"><span>HIGHEST COMBO</span><span id="mc-combo">0</span></div>
           <div class="go-row best"><span>RANK</span><span id="mc-rank" class="rank-d">D</span></div>
         </div>
         <div class="go-best">
@@ -315,7 +317,7 @@
           <div class="go-row best"><span>BEST SCORE</span><span id="mc-best-score">0</span></div>
         </div>
         <div class="menu-buttons">
-          <button class="btn btn-primary" id="btn-again">PLAY AGAIN</button>
+          <button class="btn btn-primary" id="btn-again">CONTINUE</button>
           <button class="btn" id="btn-complete-menu">MAIN MENU</button>
         </div>
       </div>

@@ -60,6 +60,10 @@ export class Game {
     this.damageDealt = 0;
     this.damageTaken = 0;
     this.bossDefeated = false;
+    this.combo = 0;
+    this.maxCombo = 0;
+    this.comboTimer = 0;
+    this.extracted = false;
     this.pendingLevels = 0;
     this.pendingInteract = false;
 
@@ -238,6 +242,10 @@ export class Game {
     this.projectiles.clear();
     this.mission.start();
     this.bossDefeated = false;
+    this.combo = 0;
+    this.maxCombo = 0;
+    this.comboTimer = 0;
+    this.extracted = false;
     this.score = 0;
     this.kills = 0;
     this.shotsFired = 0;
@@ -328,8 +336,11 @@ export class Game {
   missionComplete() {
     if (this.state === 'complete') return;
     this.state = 'complete';
+    this.extracted = true;
     if (document.pointerLockElement) document.exitPointerLock();
     this.firing = false;
+    this.player.invuln = Infinity; // disable player damage during extraction debrief
+    if (this.audio.stopBossMusic) this.audio.stopBossMusic(); // stop boss music
     this.audio.play('missionComplete');
     this.ui.showNotification('MISSION COMPLETE', 'green');
     // stop combat: clear remaining hostiles
@@ -343,7 +354,7 @@ export class Game {
       const best = this.saveMissionBest(rank, t, this.score);
       this.ui.showComplete({
         time, kills: this.kills, acc, dmgTaken: Math.round(this.damageTaken),
-        boss: this.bossDefeated, rank,
+        boss: this.bossDefeated, rank, combo: this.maxCombo,
         bestRank: best.rank, bestTime: best.time, bestScore: best.score,
       });
     });
@@ -587,6 +598,9 @@ export class Game {
   onEnemyKilled(enemy) {
     this.score += enemy.score;
     this.kills++;
+    this.combo++;
+    this.comboTimer = 3.0;
+    if (this.combo > this.maxCombo) this.maxCombo = this.combo;
     this.player.addXP(enemy.xp);
     this.audio.play('enemyDeath');
     if (enemy.type === 'brute') this.ui.crosshairKill('NULL BRUTE ELIMINATED');
@@ -852,6 +866,10 @@ export class Game {
   }
 
   simulate(dt) {
+    if (this.comboTimer > 0) {
+      this.comboTimer -= dt;
+      if (this.comboTimer <= 0) this.combo = 0;
+    }
     if (this.introT > 0) { this.simulateIntro(dt); return; }
 
     const sprint = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');

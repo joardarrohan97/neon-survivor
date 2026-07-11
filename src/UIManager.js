@@ -36,7 +36,7 @@ export class UIManager {
       goScore: $('go-score'), goTerminals: $('go-terminals'), goLevel: $('go-level'), goKills: $('go-kills'), goBest: $('go-best'),
       complete: $('complete'),
       mcTime: $('mc-time'), mcKills: $('mc-kills'), mcAcc: $('mc-acc'),
-      mcBoss: $('mc-boss'), mcDmgTaken: $('mc-dmg-taken'), mcRank: $('mc-rank'),
+      mcBoss: $('mc-boss'), mcDmgTaken: $('mc-dmg-taken'), mcCombo: $('mc-combo'), mcRank: $('mc-rank'),
       mcBestRank: $('mc-best-rank'), mcBestTime: $('mc-best-time'), mcBestScore: $('mc-best-score'),
       fadeScreen: $('fade-screen'),
     };
@@ -289,7 +289,17 @@ export class UIManager {
 
   // ---------- Objective ----------
   setObjective(title, sub) {
-    if (title !== undefined && title !== null) this.objTitle = title;
+    if (title !== undefined && title !== null) {
+      if (title !== this.objTitle) {
+        this.objTitle = title;
+        // PART 6: animate the objective title when it changes
+        if (this.el.objTitle) {
+          this.el.objTitle.classList.remove('obj-flash');
+          void this.el.objTitle.offsetWidth;
+          this.el.objTitle.classList.add('obj-flash');
+        }
+      }
+    }
     if (sub !== undefined && sub !== null) this.objSub = sub;
     if (this.el.objTitle) this.el.objTitle.textContent = this.objTitle;
     if (this.el.objSub) this.el.objSub.textContent = this.objSub;
@@ -534,6 +544,7 @@ export class UIManager {
     if (e.mcAcc) e.mcAcc.textContent = stats.acc + '%';
     if (e.mcBoss) e.mcBoss.textContent = stats.boss ? 'YES' : 'NO';
     if (e.mcDmgTaken) e.mcDmgTaken.textContent = stats.dmgTaken;
+    if (e.mcCombo) e.mcCombo.textContent = stats.combo;
     if (e.mcRank) {
       e.mcRank.textContent = stats.rank;
       e.mcRank.className = 'rank-' + (stats.rank || 'D').toLowerCase();
