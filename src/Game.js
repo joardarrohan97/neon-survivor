@@ -790,7 +790,7 @@ export class Game {
     this.introT -= dt;
     if (!this._introMsg2 && this.introT < 1.8) {
       this._introMsg2 = true;
-      this.ui.showNotification('PRIMARY OBJECTIVE UPDATED', 'cyan');
+      this.ui.showNotification('MISSION UPDATED', 'cyan');
       this.ui.setObjective('RESTORE THE ENERGY GRID', 'TERMINALS 0 / 3');
       this.mission.highlightTerminal(0);
     }
@@ -815,7 +815,7 @@ export class Game {
     this.world.update(dt);
     if (this.introT <= 0) {
       // hand control to the player
-      this.ui.showNotification('RESTORE THE ENERGY GRID', 'cyan');
+      this.ui.showNotification('MISSION UPDATED', 'cyan');
       this.pendingInteract = false;
     }
   }

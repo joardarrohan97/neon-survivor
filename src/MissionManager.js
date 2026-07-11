@@ -34,6 +34,17 @@ export class MissionManager {
     this.buildPathArrows();
     this.highlight = null;
     this.beaconPulse = 0;
+    this.beaconColor = null;
+  }
+
+  // ---- recolor the world-space objective beacon by objective type ----
+  setBeaconColor(hex) {
+    if (this.beaconColor === hex) return;
+    this.beaconColor = hex;
+    this.beaconBeam.material.color.setHex(hex);
+    this.beaconDiamond.material.color.setHex(hex);
+    this.beaconRing1.material.color.setHex(hex);
+    this.beaconRing2.material.color.setHex(hex);
   }
 
   // ---- holographic objective beacon ----
@@ -92,6 +103,11 @@ export class MissionManager {
     const tgt = this.target;
     if (!tgt || !tgt.position) { this.beacon.visible = false; return; }
     this.beacon.visible = true;
+    // color-code beacon: cyan terminals / orange Neural Core / green extraction
+    let bc = 0x00f0ff;
+    if (this.phase === 'boss') bc = 0xffae33;
+    else if (this.phase === 'extraction') bc = 0x39ffb0;
+    this.setBeaconColor(bc);
     this.beacon.position.set(tgt.position.x, 0, tgt.position.z);
     this.beaconPulse += dt;
     const p = this.beaconPulse;
@@ -178,7 +194,7 @@ export class MissionManager {
       }
     if (this.extraction) { this.scene.remove(this.extraction.group); this.extraction = null; }
     this.game.ui.setObjective('RESTORE THE ENERGY GRID', 'TERMINALS 0 / 3');
-    this.game.ui.showNotification('NEW OBJECTIVE', 'cyan');
+    this.game.ui.showNotification('MISSION UPDATED', 'cyan');
   }
 
   update(dt, player, interactPressed) {
@@ -208,7 +224,7 @@ export class MissionManager {
         this.nearTerminal.timer = 30;
         this.defenseSpawnTimer = 0.5;
         this.game.audio.play('terminalActivate');
-        this.game.ui.showNotification('DEFEND TERMINAL', 'red');
+        this.game.ui.showNotification('MISSION UPDATED', 'cyan');
         this.game.ui.setObjective('DEFEND THE TERMINAL', this.nearTerminal.label + ' UPLOADING…');
       }
 
@@ -228,7 +244,7 @@ export class MissionManager {
           t.markerMat.color.setHex(0xffc23a);
           this.terminalsRestored++;
           this.game.audio.play('terminalUpload');
-          this.game.ui.showNotification('TERMINAL RESTORED', 'green');
+          this.game.ui.showNotification('OBJECTIVE COMPLETE', 'green');
           this.game.ui.setObjective('RESTORE THE ENERGY GRID', 'ENERGY TERMINALS: ' + this.terminalsRestored + ' / 3');
           this.activeDefense = null;
           this.game.spawnTerminalAmmo(t.pos);
@@ -242,7 +258,7 @@ export class MissionManager {
         this.game.enemyManager.spawnBoss();
         this.difficulty = 1.4;
         this.game.ui.setObjective('BREACH THE NEURAL CORE', 'ELIMINATE THE NULL WARDEN');
-        this.game.ui.showNotification('NEURAL CORE ACCESS GRANTED', 'cyan');
+        this.game.ui.showNotification('CORE UNLOCKED', 'amber');
         this.game.audio.play('objective');
       }
     }
@@ -253,7 +269,7 @@ export class MissionManager {
         this.phase = 'extraction';
         this.spawnExtraction();
         this.game.ui.setObjective('REACH EXTRACTION', 'ESCAPE THE SECTOR');
-        this.game.ui.showNotification('CORE STABILIZED', 'green');
+        this.game.ui.showNotification('EXTRACTION AVAILABLE', 'green');
         this.game.audio.play('objective');
       }
     }

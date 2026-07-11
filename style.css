@@ -18,6 +18,7 @@
   --orange: #ff8a2a;
   --gold: #ffc23a;
   --amber: #ffae33;
+  --green: #39ffb0;
   --violet: #9b5cff;
 
   --navy: #0a1430;
@@ -677,12 +678,12 @@ html, body {
   text-shadow: 0 0 18px var(--cyan), 0 0 40px var(--blue);
   text-align: center; white-space: nowrap;
 }
-#notification.show { animation: notifyIn 2.8s ease forwards; }
+#notification.show { animation: notifyIn 3.2s ease forwards; }
 @keyframes notifyIn {
   0% { opacity: 0; transform: translateX(-50%) translateY(-18px) scale(1.08); }
-  12% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
-  82% { opacity: 1; }
-  100% { opacity: 0; transform: translateX(-50%) translateY(0) scale(0.97); }
+  10% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  72% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(0.98); }
 }
 
 /* ---------- SCREEN-EDGE OBJECTIVE INDICATOR ---------- */

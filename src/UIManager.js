@@ -308,11 +308,12 @@ export class UIManager {
     const el = this.el.notification;
     if (!el) return;
     el.textContent = text;
-    const c = color === 'red' ? 'var(--red)' : color === 'green' ? 'var(--gold)' : color === 'amber' ? 'var(--amber)' : 'var(--cyan)';
+    const c = color === 'red' ? 'var(--red)'
+      : color === 'green' ? 'var(--green)'
+      : color === 'amber' ? 'var(--amber)'
+      : 'var(--cyan)';
     el.style.color = c;
-    el.style.textShadow = color === 'green'
-      ? `0 0 18px ${c}, 0 0 40px var(--gold)`
-      : `0 0 18px ${c}, 0 0 40px var(--blue)`;
+    el.style.textShadow = `0 0 18px ${c}, 0 0 40px var(--blue)`;
     el.classList.remove('show');
     void el.offsetWidth;
     el.classList.add('show');
