@@ -436,9 +436,9 @@ export class Game {
 
   rollAmmoDrop(type) {
     let chance = 0, amt = 0;
-    if (type === 'drone') { chance = 0.15; amt = 15; }
-    else if (type === 'rifleman') { chance = 0.30; amt = 25; }
-    else if (type === 'brute') { chance = 1.0; amt = 50; }
+    if (type === 'drone') { chance = 0.20; amt = 15; }       // EyeDrone
+    else if (type === 'rifleman') { chance = 0.35; amt = 25; } // Trilobite
+    else if (type === 'brute') { chance = 1.0; amt = 50; }    // QuadShell
     else return 0;
     return Math.random() < chance ? amt : 0;
   }
@@ -450,7 +450,7 @@ export class Game {
       const pk = this.ammoPickups[i];
       pk.update(dt);
       const d = Math.hypot(pk.group.position.x - p.x, pk.group.position.z - p.z);
-      if (d < 2.4) {
+      if (d < 2.0) {
         const added = this.weapon.addReserve(pk.amount);
         if (added > 0) {
           this.audio.play('ammoPickup');

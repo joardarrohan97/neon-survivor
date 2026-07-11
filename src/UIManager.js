@@ -232,7 +232,7 @@ export class UIManager {
     if (this.el.ammoMax) this.el.ammoMax.textContent = reserve;
 
     const MAX_RESERVE = 300;
-    if (this.el.ammoMax) this.el.ammoMax.classList.toggle('ammo-flash', reserve < 20 && reserve < MAX_RESERVE);
+    if (this.el.ammoMax) this.el.ammoMax.classList.toggle('ammo-flash', reserve < 30 && reserve < MAX_RESERVE);
 
     const s = this.el.ammoStatus;
     if (s) {
