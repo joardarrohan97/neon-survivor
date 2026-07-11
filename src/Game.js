@@ -557,6 +557,8 @@ export class Game {
     this.ui.crosshairKill('NULL WARDEN ELIMINATED');
     this.ui.showNotification('CORE SECURED', 'green');
     this.ui.addKill('boss', true);
+    // Phase 3 cleanup: stop any further drone presence
+    this.enemyManager.clearDrones();
   }
 
   triggerSlowmo(duration, scale) {

@@ -267,6 +267,7 @@ export class MissionManager {
         this.phase = 'extraction';
         this.spawnExtraction();
         this.game.ui.setObjective('REACH EXTRACTION', 'ESCAPE THE SECTOR');
+        this.game.ui.showNotification('MISSION UPDATED', 'cyan');
         this.game.ui.showNotification('EXTRACTION AVAILABLE', 'green');
         this.game.audio.play('objective');
       }

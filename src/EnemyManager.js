@@ -130,6 +130,18 @@ export class EnemyManager {
     return c;
   }
 
+  // ---- remove all summoned Eye Drones (e.g. on boss death) ----
+  clearDrones() {
+    for (let i = this.enemies.length - 1; i >= 0; i--) {
+      const e = this.enemies[i];
+      if (e.type === 'drone') {
+        if (e._slamTele) this.game.removeTelegraph(e._slamTele);
+        this.scene.remove(e.group);
+        this.enemies.splice(i, 1);
+      }
+    }
+  }
+
   clear() {
     for (const e of this.enemies) this.scene.remove(e.group);
     this.enemies.length = 0;

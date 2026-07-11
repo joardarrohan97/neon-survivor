@@ -544,6 +544,7 @@ export class Boss {
     this.maxHealth = 5000;
     this.health = this.maxHealth;
     this.radius = 3;
+    this.damage = 30;
     this.dead = false;
     this.dying = false;
     this.deathTimer = 0;
@@ -558,15 +559,22 @@ export class Boss {
     this.fireCd = 2.5; // first heavy plasma shot fires after 2.5s
     this._deathParticles = [];
 
-    // Phase 2 state
+    // Phase state
     this.phase = 1;
     this.phase2Triggered = false;
+    this.phase3Triggered = false;
     this.transition = false;
     this.transitionTimer = 0;
+    this._nextPhase = 2;
     this.moveSpeed = 3.5;
     this.summonCd = 15;
     this.maxDrones = 6;
     this._phaseSeq = 0;
+
+    // Phase 3 — berserk shockwave + drone swarm
+    this.shockCd = 8 + Math.random() * 2; // first shockwave after 8–10s
+    this.shockTimer = 0;
+    this._shockTele = null;
 
     this.build();
   }
@@ -627,6 +635,8 @@ export class Boss {
     this.dead = true;
     this.dying = true;
     this.deathTimer = 3.0;
+    if (this._shockTele) { this.game.removeTelegraph(this._shockTele); this._shockTele = null; }
+    this.shockTimer = 0;
     this.game.onBossKilled(this);
     this.spawnDeathBurst();
   }
@@ -669,13 +679,26 @@ export class Boss {
       this.phase2Triggered = true;
       this.transition = true;
       this.transitionTimer = 1.4; // brief pause before changing phase
+      this._nextPhase = 2;
       this._beginPhase2Sequence();
+    }
+
+    // ---- Phase 3 trigger at 30% health ----
+    if (!this.phase3Triggered && this.health <= this.maxHealth * 0.3) {
+      this.phase3Triggered = true;
+      this.transition = true;
+      this.transitionTimer = 1.4; // brief pause before Berserk Mode
+      this._nextPhase = 3;
+      this._beginPhase3Sequence();
     }
 
     // ---- phase transition: boss pauses briefly ----
     if (this.transition) {
       this.transitionTimer -= dt;
-      if (this.transitionTimer <= 0) this._enterPhase2();
+      if (this.transitionTimer <= 0) {
+        if (this._nextPhase === 3) this._enterPhase3();
+        else this._enterPhase2();
+      }
       return;
     }
 
@@ -688,19 +711,46 @@ export class Boss {
     // fire plasma projectiles
     this.fireCd -= dt;
     if (this.fireCd <= 0) {
-      this.fireCd = 2.5;
-      if (this.phase === 2) this.fireTripleBurst(player);
+      this.fireCd = this.phase === 3 ? 1.5 : 2.5;
+      if (this.phase >= 2) this.fireTripleBurst(player);
       else this.fireHeavyPlasma(player);
     }
 
-    // Phase 2: summon Eye Drones every 15 seconds (never more than 6 alive)
-    if (this.phase === 2) {
+    // Phase 2/3: summon Eye Drones on a cadence (hard cap on live drones)
+    if (this.phase === 2 || this.phase === 3) {
+      const summonInterval = this.phase === 3 ? 20 : 15;
+      const maxDrones = this.phase === 3 ? 8 : 6;
+      const batch = this.phase === 3 ? 3 : 2;
       this.summonCd -= dt;
       if (this.summonCd <= 0) {
-        this.summonCd = 15;
+        this.summonCd = summonInterval;
         const aliveDrones = this.game.enemyManager.countType('drone');
-        const room = Math.min(2, this.maxDrones - aliveDrones);
+        const room = Math.min(batch, maxDrones - aliveDrones);
         if (room > 0) this.game.enemyManager.spawnBossDrones(room);
+      }
+    }
+
+    // Phase 3 — Berserk: periodic shockwave that damages nearby players
+    if (this.phase === 3) {
+      this.shockCd -= dt;
+      if (this.shockCd <= 0) {
+        this.shockCd = 8 + Math.random() * 2;
+        this.shockwave(player);
+      }
+      if (this.shockTimer > 0) {
+        this.shockTimer -= dt;
+        if (this.shockTimer <= 0) {
+          if (this._shockTele) { this.game.removeTelegraph(this._shockTele); this._shockTele = null; }
+          const dx = player.group.position.x - this.group.position.x;
+          const dz = player.group.position.z - this.group.position.z;
+          const d = Math.hypot(dx, dz);
+          if (d < 12) {
+            player.takeDamage(this.damage * 1.5);
+            this.game.onPlayerHit(this.group.position);
+          }
+          this.game.spawnImpact(this.group.position.clone().setY(0.2), 0xff3b57, 4);
+          this.game.addShake(4);
+        }
       }
     }
   }
@@ -726,6 +776,42 @@ export class Boss {
     this.fireCd = 2.5;      // keep the firing cadence after the pause
     this.summonCd = 15;     // first drone summon after 15s
     this.name = 'NULL WARDEN — PHASE 2';
+  }
+
+  _beginPhase3Sequence() {
+    const seq = ++this._phaseSeq;
+    this.game.ui.showNotification('WARNING', 'red');
+    this.game.audio.play('bossWarning');
+    setTimeout(() => {
+      if (seq !== this._phaseSeq || this.dead) return;
+      this.game.ui.showNotification('NULL WARDEN CRITICAL', 'red');
+    }, 900);
+    setTimeout(() => {
+      if (seq !== this._phaseSeq || this.dead) return;
+      this.game.ui.showNotification('EMERGENCY PROTOCOL ACTIVE', 'red');
+    }, 1800);
+    setTimeout(() => {
+      if (seq !== this._phaseSeq || this.dead) return;
+      this.game.ui.showNotification('PHASE 3', 'red');
+    }, 2700);
+  }
+
+  _enterPhase3() {
+    this.transition = false;
+    this.phase = 3;
+    this.moveSpeed *= 1.25; // ~25% faster movement (Berserk Mode)
+    this.fireCd = 1.5;      // reduced attack cooldown (~1.5s)
+    this.summonCd = 20;     // first drone swarm after 20s
+    this.maxDrones = 8;     // hard cap of 8 active drones
+    this.name = 'NULL WARDEN — PHASE 3';
+  }
+
+  // ---- Phase 3 shockwave: telegraph, then damage players caught in the ring ----
+  shockwave(player) {
+    if (this.dead) return;
+    this.shockTimer = 0.8;
+    this._shockTele = this.game.spawnTelegraph(this.group.position.clone().setY(0), 12, 0.8);
+    this.game.audio.play('bossAttack');
   }
 
   // ---- triple plasma burst (Phase 2): forward + -10deg + +10deg ----
