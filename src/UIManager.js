@@ -192,7 +192,7 @@ export class UIManager {
     }
 
     // boss bar
-    if (enemyManager && enemyManager.boss) {
+    if (enemyManager && enemyManager.boss && !enemyManager.boss.dying) {
       this.showBoss(enemyManager.boss.name || 'NULL WARDEN');
       this.setBossHealth(enemyManager.boss.health / enemyManager.boss.maxHealth);
     } else {

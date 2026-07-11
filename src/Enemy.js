@@ -527,7 +527,7 @@ Enemy.stats = function (type, diff) {
 };
 
 // =========================================================
-//  NULL WARDEN — final boss
+//  NULL WARDEN — final boss (Phase 1)
 // =========================================================
 export class Boss {
   constructor(position, scene, game) {
@@ -535,6 +535,8 @@ export class Boss {
     this.game = game;
     this.group = new THREE.Group();
     this.group.position.copy(position);
+    // built geometry is already ~3x a normal enemy (rifleman ~2.1 units tall)
+    this.group.scale.setScalar(1);
     scene.add(this.group);
     this.isBoss = true;
     this.name = 'THE NULL WARDEN';
@@ -551,15 +553,9 @@ export class Boss {
 
     this.state = 'intro';
     this.stateTimer = 2.2;
-    this.chargeDir = new THREE.Vector3(0, 0, 1);
-    this.telegraph = 0;
-    this.chargeTime = 0;
-    this.volleys = 0;
-    this.volleyTimer = 0;
     this.wobble = 0;
     this.ringRot = 0;
-    this.spawnCd = 10;
-    this.phase = 1;
+    this.fireCd = 2.5; // first heavy plasma shot fires after 2.5s
     this._deathParticles = [];
 
     this.build();
@@ -621,7 +617,6 @@ export class Boss {
     this.dead = true;
     this.dying = true;
     this.deathTimer = 3.0;
-    if (this._tele) { this.game.removeTelegraph(this._tele); this._tele = null; }
     this.game.onBossKilled(this);
     this.spawnDeathBurst();
   }
@@ -647,140 +642,39 @@ export class Boss {
       return;
     }
 
+    // ---- continuously track the player ----
     const toPlayer = new THREE.Vector3().subVectors(player.group.position, this.group.position);
     const dist = toPlayer.length();
     const flat = toPlayer.clone(); flat.y = 0; flat.normalize();
-    const ang = Math.atan2(flat.x, flat.z);
-    this.group.rotation.y = ang;
-
-    // ---- three combat phases by remaining health ----
-    const frac = this.health / this.maxHealth;
-    const newPhase = frac > 0.66 ? 1 : frac > 0.33 ? 2 : 3;
-    if (newPhase !== this.phase) { this.phase = newPhase; this.onPhaseChange(newPhase); }
+    this.group.rotation.y = Math.atan2(flat.x, flat.z);
 
     if (this.state === 'intro') {
       this.stateTimer -= dt;
-      if (this.stateTimer <= 0) { this.state = 'idle'; this.stateTimer = 2.0; }
+      if (this.stateTimer <= 0) this.state = 'active';
       return;
     }
 
-    const desired = this.phase === 3 ? 18 : 26;
-    if (dist > desired + 6) this.group.position.addScaledVector(flat, 3 * dt);
-    else if (dist < desired - 6) this.group.position.addScaledVector(flat, -3 * dt);
-
-    const speedMul = this.phase === 3 ? 1.6 : this.phase === 2 ? 1.3 : 1;
-
-    switch (this.state) {
-      case 'idle': {
-        this.stateTimer -= dt * speedMul;
-        if (this.stateTimer <= 0) {
-          const r = Math.random();
-          const cannonChance = this.phase === 3 ? 0.4 : this.phase === 2 ? 0.22 : 0;
-          if (r < cannonChance) {
-            this.state = 'cannon-telegraph'; this.telegraph = 1.2;
-            this._tele = this.game.spawnTelegraph(this.group.position.clone().setY(0), 10, 1.2);
-          } else if (r < cannonChance + 0.33) {
-            this.state = 'radial'; this.volleys = this.phase === 3 ? 4 : 3; this.volleyTimer = 0;
-          } else if (r < cannonChance + 0.66) {
-            this.state = 'charge-telegraph'; this.telegraph = 1.1; this.chargeDir.copy(flat);
-            this._tele = this.game.spawnTelegraph(this.group.position.clone().setY(0), 6, 1.1);
-          } else {
-            this.state = 'shockwave'; this.telegraph = 1.0;
-            this._tele = this.game.spawnTelegraph(this.group.position.clone().setY(0), 16, 1.0);
-          }
-        }
-        break;
-      }
-      case 'radial': {
-        this.volleyTimer -= dt;
-        if (this.volleyTimer <= 0 && this.volleys > 0) {
-          this.fireRadial(player);
-          this.volleys--; this.volleyTimer = 0.55;
-        }
-        if (this.volleys <= 0) { this.state = 'idle'; this.stateTimer = 1.6; }
-        break;
-      }
-      case 'charge-telegraph': {
-        this.telegraph -= dt;
-        this.chargeDir.lerp(flat, dt * 1.5).normalize();
-        if (this.telegraph <= 0) { if (this._tele) { this.game.removeTelegraph(this._tele); this._tele = null; } this.state = 'charging'; this.chargeTime = 0.7; this.game.audio.play('bossAppear'); this.game.addShake(4); }
-        break;
-      }
-      case 'charging': {
-        this.chargeTime -= dt;
-        const spd = 38 * speedMul;
-        this.group.position.addScaledVector(this.chargeDir, spd * dt);
-        const rr = this.radius + player.radius + 0.5;
-        if (dist < rr && this._chargeHit !== true) {
-          player.takeDamage(30); this.game.onPlayerHit(this.group.position); this._chargeHit = true;
-        }
-        if (this.chargeTime <= 0) { this.state = 'idle'; this.stateTimer = 1.4; this._chargeHit = false; }
-        break;
-      }
-      case 'shockwave': {
-        this.telegraph -= dt;
-        if (this.telegraph <= 0) {
-          if (this._tele) { this.game.removeTelegraph(this._tele); this._tele = null; }
-          this.game.spawnImpact(this.group.position.clone().setY(0.3), 0xff3b57, 6);
-          this.game.audio.play('bossAttack');
-          if (dist < 14) { player.takeDamage(24); this.game.onPlayerHit(this.group.position); }
-          this.game.addShake(5);
-          this.state = 'idle'; this.stateTimer = 2.0;
-        }
-        break;
-      }
-      case 'cannon-telegraph': {
-        this.telegraph -= dt;
-        if (this.telegraph <= 0) {
-          if (this._tele) { this.game.removeTelegraph(this._tele); this._tele = null; }
-          this.fireCannon(player);
-          this.state = 'idle'; this.stateTimer = 2.0;
-        }
-        break;
-      }
+    // approach the player, keeping a short standoff so it keeps firing
+    const standoff = this.radius + player.radius + 3;
+    if (dist > standoff) {
+      this.group.position.addScaledVector(flat, 3.5 * dt);
     }
 
-    this.spawnCd -= dt;
-    if (this.spawnCd <= 0) {
-      this.spawnCd = this.phase === 3 ? 8 : this.phase === 2 ? 10 : 12;
-      this.game.enemyManager.spawnBossDrones(this.phase === 3 ? 5 : 3);
+    // fire ONE heavy plasma projectile every 2.5 seconds
+    this.fireCd -= dt;
+    if (this.fireCd <= 0) {
+      this.fireCd = 2.5;
+      this.fireHeavyPlasma(player);
     }
   }
 
-  fireRadial(player) {
-    const base = Math.random() * Math.PI * 2;
-    const n = 20;
+  // ---- heavy plasma: slow, high-damage aimed shot (existing projectile system) ----
+  fireHeavyPlasma(player) {
     const from = this.getMuzzleWorld(new THREE.Vector3());
-    for (let i = 0; i < n; i++) {
-      const a = base + (i / n) * Math.PI * 2;
-      const dir = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
-      this.game.projectiles.spawnEnemyProjectile(from, dir, 16, 14, RED, 0.35);
-    }
+    const to = player.group.position.clone().setY(1.1);
+    const dir = new THREE.Vector3().subVectors(to, from).normalize();
+    this.game.projectiles.spawnEnemyProjectile(from, dir, 18, 25, 0x9b5cff, 0.5);
     this.game.audio.play('bossAttack');
-  }
-
-  // ---- heavy cannon: slow, high-damage aimed burst (mag. violet) ----
-  fireCannon(player) {
-    const from = this.getMuzzleWorld(new THREE.Vector3());
-    const to = player.group.position.clone().setY(1.2);
-    const baseDir = new THREE.Vector3().subVectors(to, from).normalize();
-    const burst = this.phase === 3 ? 3 : 1;
-    for (let i = 0; i < burst; i++) {
-      const spread = (i - (burst - 1) / 2) * 0.14;
-      const dir = baseDir.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), spread);
-      this.game.projectiles.spawnEnemyProjectile(from, dir, 26, 42, 0xff2bd6, 1.1);
-    }
-    this.game.audio.play('bossAttack');
-    this.game.addShake(4);
-  }
-
-  // ---- phase transition: shockwave feedback + enrage announce ----
-  onPhaseChange(p) {
-    this.game.addShake(p === 3 ? 10 : 6);
-    this.game.audio.play('bossAttack');
-    this.game.spawnImpact(this.group.position.clone().setY(0.3), 0x9b5cff, 9);
-    if (p === 3) this.game.ui.showNotification('NULL WARDEN ENRAGED', 'red');
-    else this.game.ui.showNotification('NULL WARDEN — PHASE ' + p, 'amber');
   }
 
   // ---- death particle burst (explosion debris) ----
@@ -812,5 +706,4 @@ export class Boss {
     }
   }
 
-  getCharging() { return this.state === 'charge-telegraph' || this.state === 'shockwave'; }
 }
