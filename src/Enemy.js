@@ -558,6 +558,16 @@ export class Boss {
     this.fireCd = 2.5; // first heavy plasma shot fires after 2.5s
     this._deathParticles = [];
 
+    // Phase 2 state
+    this.phase = 1;
+    this.phase2Triggered = false;
+    this.transition = false;
+    this.transitionTimer = 0;
+    this.moveSpeed = 3.5;
+    this.summonCd = 15;
+    this.maxDrones = 6;
+    this._phaseSeq = 0;
+
     this.build();
   }
 
@@ -654,18 +664,86 @@ export class Boss {
       return;
     }
 
+    // ---- Phase 2 trigger at 70% health ----
+    if (!this.phase2Triggered && this.health <= this.maxHealth * 0.7) {
+      this.phase2Triggered = true;
+      this.transition = true;
+      this.transitionTimer = 1.4; // brief pause before changing phase
+      this._beginPhase2Sequence();
+    }
+
+    // ---- phase transition: boss pauses briefly ----
+    if (this.transition) {
+      this.transitionTimer -= dt;
+      if (this.transitionTimer <= 0) this._enterPhase2();
+      return;
+    }
+
     // approach the player, keeping a short standoff so it keeps firing
     const standoff = this.radius + player.radius + 3;
     if (dist > standoff) {
-      this.group.position.addScaledVector(flat, 3.5 * dt);
+      this.group.position.addScaledVector(flat, this.moveSpeed * dt);
     }
 
-    // fire ONE heavy plasma projectile every 2.5 seconds
+    // fire plasma projectiles
     this.fireCd -= dt;
     if (this.fireCd <= 0) {
       this.fireCd = 2.5;
-      this.fireHeavyPlasma(player);
+      if (this.phase === 2) this.fireTripleBurst(player);
+      else this.fireHeavyPlasma(player);
     }
+
+    // Phase 2: summon Eye Drones every 15 seconds (never more than 6 alive)
+    if (this.phase === 2) {
+      this.summonCd -= dt;
+      if (this.summonCd <= 0) {
+        this.summonCd = 15;
+        const aliveDrones = this.game.enemyManager.countType('drone');
+        const room = Math.min(2, this.maxDrones - aliveDrones);
+        if (room > 0) this.game.enemyManager.spawnBossDrones(room);
+      }
+    }
+  }
+
+  _beginPhase2Sequence() {
+    const seq = ++this._phaseSeq;
+    this.game.ui.showNotification('WARNING', 'red');
+    this.game.audio.play('bossWarning');
+    setTimeout(() => {
+      if (seq !== this._phaseSeq || this.dead) return;
+      this.game.ui.showNotification('NULL WARDEN ADAPTING', 'red');
+    }, 1000);
+    setTimeout(() => {
+      if (seq !== this._phaseSeq || this.dead) return;
+      this.game.ui.showNotification('PHASE 2', 'red');
+    }, 2000);
+  }
+
+  _enterPhase2() {
+    this.transition = false;
+    this.phase = 2;
+    this.moveSpeed *= 1.25; // ~25% faster movement
+    this.fireCd = 2.5;      // keep the firing cadence after the pause
+    this.summonCd = 15;     // first drone summon after 15s
+    this.name = 'NULL WARDEN — PHASE 2';
+  }
+
+  // ---- triple plasma burst (Phase 2): forward + -10deg + +10deg ----
+  fireTripleBurst(player) {
+    const from = this.getMuzzleWorld(new THREE.Vector3());
+    const to = player.group.position.clone().setY(1.1);
+    const baseDir = new THREE.Vector3().subVectors(to, from).normalize();
+    const spread = THREE.MathUtils.degToRad(10);
+    const dirs = [baseDir, this._rotateY(baseDir, -spread), this._rotateY(baseDir, spread)];
+    for (const dir of dirs) {
+      this.game.projectiles.spawnEnemyProjectile(from, dir, 18, 25, 0x9b5cff, 0.5);
+    }
+    this.game.audio.play('bossAttack');
+  }
+
+  _rotateY(vec, ang) {
+    const c = Math.cos(ang), s = Math.sin(ang);
+    return new THREE.Vector3(vec.x * c + vec.z * s, vec.y, -vec.x * s + vec.z * c);
   }
 
   // ---- heavy plasma: slow, high-damage aimed shot (existing projectile system) ----

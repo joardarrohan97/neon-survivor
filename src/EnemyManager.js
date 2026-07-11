@@ -124,6 +124,12 @@ export class EnemyManager {
 
   count() { return this.enemies.length; }
 
+  countType(type) {
+    let c = 0;
+    for (const e of this.enemies) if (e.type === type && !e.dying) c++;
+    return c;
+  }
+
   clear() {
     for (const e of this.enemies) this.scene.remove(e.group);
     this.enemies.length = 0;
