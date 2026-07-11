@@ -35,7 +35,10 @@ export class UIManager {
       gameover: $('gameover'),
       goScore: $('go-score'), goTerminals: $('go-terminals'), goLevel: $('go-level'), goKills: $('go-kills'), goBest: $('go-best'),
       complete: $('complete'),
-      mcTime: $('mc-time'), mcKills: $('mc-kills'), mcAcc: $('mc-acc'), mcDmg: $('mc-dmg'), mcLevel: $('mc-level'),
+      mcTime: $('mc-time'), mcKills: $('mc-kills'), mcAcc: $('mc-acc'),
+      mcBoss: $('mc-boss'), mcDmgTaken: $('mc-dmg-taken'), mcRank: $('mc-rank'),
+      mcBestRank: $('mc-best-rank'), mcBestTime: $('mc-best-time'), mcBestScore: $('mc-best-score'),
+      fadeScreen: $('fade-screen'),
     };
 
     // rotating objective-direction arrow (injected into objective HUD)
@@ -529,11 +532,34 @@ export class UIManager {
     if (e.mcTime) e.mcTime.textContent = stats.time;
     if (e.mcKills) e.mcKills.textContent = stats.kills;
     if (e.mcAcc) e.mcAcc.textContent = stats.acc + '%';
-    if (e.mcDmg) e.mcDmg.textContent = stats.dmg;
-    if (e.mcLevel) e.mcLevel.textContent = stats.level;
+    if (e.mcBoss) e.mcBoss.textContent = stats.boss ? 'YES' : 'NO';
+    if (e.mcDmgTaken) e.mcDmgTaken.textContent = stats.dmgTaken;
+    if (e.mcRank) {
+      e.mcRank.textContent = stats.rank;
+      e.mcRank.className = 'rank-' + (stats.rank || 'D').toLowerCase();
+    }
+    if (e.mcBestRank) e.mcBestRank.textContent = stats.bestRank;
+    if (e.mcBestTime) e.mcBestTime.textContent = stats.bestTime;
+    if (e.mcBestScore) e.mcBestScore.textContent = stats.bestScore;
     e.complete.classList.remove('hidden');
   }
   hideComplete() {
     if (this.el.complete) this.el.complete.classList.add('hidden');
+  }
+
+  // ---------- Extraction fade ----------
+  fadeIn(onDone) {
+    const el = this.el.fadeScreen;
+    if (!el) { if (onDone) onDone(); return; }
+    el.classList.remove('hidden');
+    // next frame -> trigger the CSS opacity transition
+    requestAnimationFrame(() => { el.classList.add('active'); });
+    setTimeout(() => { if (onDone) onDone(); }, 1100);
+  }
+  fadeOut() {
+    const el = this.el.fadeScreen;
+    if (!el) return;
+    el.classList.remove('active');
+    setTimeout(() => { el.classList.add('hidden'); }, 1100);
   }
 }

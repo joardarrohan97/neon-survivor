@@ -66,7 +66,7 @@ function boot() {
 
     // ---- MISSION COMPLETE ----
     $('btn-again').addEventListener('click', () => game.restart());
-    $('btn-complete-menu').addEventListener('click', () => { hide('complete'); show('menu'); });
+    $('btn-complete-menu').addEventListener('click', () => { game.toMenu(); show('menu'); });
 
     // ---- MUTE ----
     $('mute-btn').addEventListener('click', () => game.toggleMute());

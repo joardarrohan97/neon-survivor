@@ -304,9 +304,15 @@
         <div class="go-stats">
           <div class="go-row"><span>MISSION TIME</span><span id="mc-time">0:00</span></div>
           <div class="go-row"><span>ENEMIES ELIMINATED</span><span id="mc-kills">0</span></div>
+          <div class="go-row"><span>BOSS DEFEATED</span><span id="mc-boss">NO</span></div>
           <div class="go-row"><span>ACCURACY</span><span id="mc-acc">0%</span></div>
-          <div class="go-row"><span>DAMAGE DEALT</span><span id="mc-dmg">0</span></div>
-          <div class="go-row best"><span>OPERATIVE LEVEL</span><span id="mc-level">1</span></div>
+          <div class="go-row"><span>DAMAGE TAKEN</span><span id="mc-dmg-taken">0</span></div>
+          <div class="go-row best"><span>RANK</span><span id="mc-rank" class="rank-d">D</span></div>
+        </div>
+        <div class="go-best">
+          <div class="go-row best"><span>BEST RANK</span><span id="mc-best-rank">D</span></div>
+          <div class="go-row best"><span>BEST TIME</span><span id="mc-best-time">0:00</span></div>
+          <div class="go-row best"><span>BEST SCORE</span><span id="mc-best-score">0</span></div>
         </div>
         <div class="menu-buttons">
           <button class="btn btn-primary" id="btn-again">PLAY AGAIN</button>
@@ -314,6 +320,9 @@
         </div>
       </div>
     </div>
+
+    <!-- EXTRACTION FADE -->
+    <div id="fade-screen" class="hidden"></div>
   </div>
 
   <script type="module" src="./src/main.js"></script>

@@ -58,6 +58,7 @@ export class Game {
     this.shotsFired = 0;
     this.shotsHit = 0;
     this.damageDealt = 0;
+    this.damageTaken = 0;
     this.bossDefeated = false;
     this.pendingLevels = 0;
     this.pendingInteract = false;
@@ -242,6 +243,7 @@ export class Game {
     this.shotsFired = 0;
     this.shotsHit = 0;
     this.damageDealt = 0;
+    this.damageTaken = 0;
     this.pendingLevels = 0;
     this.pendingInteract = false;
     this.firing = false;
@@ -285,6 +287,7 @@ export class Game {
     this.ui.hideGameOver();
     this.ui.hideComplete();
     this.ui.hideLevelUp();
+    this.ui.fadeOut();
     this.start();
   }
 
@@ -295,6 +298,7 @@ export class Game {
     this.ui.hideGameOver();
     this.ui.hideComplete();
     this.ui.hideLevelUp();
+    this.ui.fadeOut();
     const p = document.getElementById('pause');
     if (p) p.classList.add('hidden');
     const menu = document.getElementById('menu');
@@ -328,12 +332,59 @@ export class Game {
     this.firing = false;
     this.audio.play('missionComplete');
     this.ui.showNotification('MISSION COMPLETE', 'green');
-    const acc = this.shotsFired > 0 ? Math.round((this.shotsHit / this.shotsFired) * 100) : 0;
-    const t = Math.floor(this.elapsed);
-    const time = Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
-    this.ui.showComplete({
-      time, kills: this.kills, acc, dmg: Math.round(this.damageDealt), level: this.player.level,
+    // stop combat: clear remaining hostiles
+    this.enemyManager.clear();
+    // fade to black, then reveal the debrief UI
+    this.ui.fadeIn(() => {
+      const acc = this.shotsFired > 0 ? Math.round((this.shotsHit / this.shotsFired) * 100) : 0;
+      const t = Math.floor(this.elapsed);
+      const time = Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
+      const rank = this.computeRank(t, this.kills, acc, this.damageTaken, this.bossDefeated);
+      const best = this.saveMissionBest(rank, t, this.score);
+      this.ui.showComplete({
+        time, kills: this.kills, acc, dmgTaken: Math.round(this.damageTaken),
+        boss: this.bossDefeated, rank,
+        bestRank: best.rank, bestTime: best.time, bestScore: best.score,
+      });
     });
+  }
+
+  computeRank(timeSec, kills, acc, dmgTaken, boss) {
+    let pts = 0;
+    if (boss) pts += 1000;
+    pts += kills * 12;
+    pts += acc * 6;
+    pts += Math.max(0, 600 - timeSec) * 2;   // faster completion scores higher
+    pts += Math.max(0, 250 - dmgTaken);       // fewer hits taken scores higher
+    if (pts >= 2800) return 'S';
+    if (pts >= 2200) return 'A';
+    if (pts >= 1700) return 'B';
+    if (pts >= 1200) return 'C';
+    return 'D';
+  }
+
+  rankValue(r) {
+    return { S: 5, A: 4, B: 3, C: 2, D: 1 }[r] || 0;
+  }
+
+  saveMissionBest(rank, timeSec, score) {
+    let bestRank = 'D', bestTime = timeSec, bestScore = score;
+    try {
+      const r = localStorage.getItem('cb_best_rank');
+      const tm = parseInt(localStorage.getItem('cb_best_time') || '0', 10) || 0;
+      const sc = parseInt(localStorage.getItem('cb_best_score') || '0', 10) || 0;
+      if (r && this.rankValue(r) > this.rankValue(rank)) bestRank = r; else bestRank = rank;
+      if (timeSec < tm || tm === 0) bestTime = timeSec; else bestTime = tm;
+      if (score > sc) bestScore = score; else bestScore = sc;
+      localStorage.setItem('cb_best_rank', bestRank);
+      localStorage.setItem('cb_best_time', String(bestTime));
+      localStorage.setItem('cb_best_score', String(bestScore));
+    } catch (e) {}
+    return {
+      rank: bestRank,
+      time: Math.floor(bestTime / 60) + ':' + String(Math.floor(bestTime) % 60).padStart(2, '0'),
+      score: bestScore,
+    };
   }
 
   saveBest() {
@@ -576,6 +627,7 @@ export class Game {
   }
 
   onPlayerHit(srcPos) {
+    this.damageTaken += this.player.lastDamageTaken || 0;
     const p = this.player.group.position;
     let dir = 'front';
     if (srcPos) {

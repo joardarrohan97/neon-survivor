@@ -266,7 +266,7 @@ export class MissionManager {
       if (this.game.bossDefeated && !this.extraction) {
         this.phase = 'extraction';
         this.spawnExtraction();
-        this.game.ui.setObjective('REACH EXTRACTION', 'ESCAPE THE SECTOR');
+        this.game.ui.setObjective('REACH EXTRACTION POINT', 'ESCAPE THE SECTOR');
         this.game.ui.showNotification('MISSION UPDATED', 'cyan');
         this.game.ui.showNotification('EXTRACTION AVAILABLE', 'green');
         this.game.audio.play('objective');

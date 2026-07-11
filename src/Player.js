@@ -204,12 +204,14 @@ export class Player {
   onHit() { this.hitTimer = 0.25; }
 
   takeDamage(amount) {
-    if (this.invuln > 0 || !this.alive) return 0;
+    if (this.invuln > 0 || !this.alive) { this.lastDamageTaken = 0; return 0; }
     let dmg = amount;
+    let taken = 0;
     if (this.shield > 0) {
       const absorbed = Math.min(this.shield, dmg);
       this.shield -= absorbed;
       dmg -= absorbed;
+      taken += absorbed;
       this.lastDamageShield = absorbed > 0;
       this.audio.play('shieldDamage');
     } else {
@@ -217,8 +219,10 @@ export class Player {
     }
     if (dmg > 0) {
       this.health -= dmg;
+      taken += dmg;
       this.audio.play('playerDamage');
     }
+    this.lastDamageTaken = taken;
     this.shieldTimer = 0;
     this.invuln = 0.5;
     this.onHit();
