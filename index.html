@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>NEON SURVIVOR: CORE BREACH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="game-wrap">
+    <!-- Three.js renderer canvas is injected here -->
+
+    <!-- LOADING SCREEN (preload combat assets before DEPLOY) -->
+    <div id="loading-screen">
+      <div class="load-inner">
+        <h1 class="title" data-text="NEON SURVIVOR">NEON&nbsp;SURVIVOR</h1>
+        <p class="subtitle">// CORE BREACH //</p>
+        <div class="load-label">LOADING COMBAT SYSTEMS</div>
+        <div class="load-bar"><div id="load-fill"></div></div>
+        <div id="load-pct">0%</div>
+      </div>
+    </div>
+
+    <!-- SCREEN-EDGE OBJECTIVE INDICATOR -->
+    <div id="edge-marker" class="hidden">
+      <div id="edge-arrow">&#9650;</div>
+      <div id="edge-label">OBJECTIVE</div>
+    </div>
+
+    <!-- BOSS HEALTH BAR -->
+    <div id="boss-bar-wrap" class="hidden">
+      <div id="boss-name">NULL WARDEN</div>
+      <div class="boss-bar-outer"><div class="boss-bar-inner" id="boss-bar"></div></div>
+    </div>
+
+    <!-- FLOATING DAMAGE NUMBERS -->
+    <div id="floaters"></div>
+
+    <!-- SHIELD HEX SCREEN FLASH -->
+    <div id="shield-flash"></div>
+
+    <!-- DIRECTIONAL HEALTH DAMAGE FEEDBACK -->
+    <div id="dmg-dir">
+      <div class="dd dd-top"></div>
+      <div class="dd dd-bottom"></div>
+      <div class="dd dd-left"></div>
+      <div class="dd dd-right"></div>
+    </div>
+
+    <!-- CROSSHAIR -->
+    <div id="crosshair" class="hidden">
+      <div class="ch-dot"></div>
+      <div class="ch-line ch-top"></div>
+      <div class="ch-line ch-bottom"></div>
+      <div class="ch-line ch-left"></div>
+      <div class="ch-line ch-right"></div>
+      <div class="ch-hitmark">
+        <span class="hm hm-tl"></span><span class="hm hm-tr"></span>
+        <span class="hm hm-bl"></span><span class="hm hm-br"></span>
+      </div>
+      <div id="ch-crit">CRITICAL</div>
+      <div id="ch-kill"></div>
+    </div>
+
+    <!-- INTERACTION PROMPT -->
+    <div id="prompt" class="hidden"></div>
+
+    <!-- OBJECTIVE HUD (top-left) -->
+    <div id="objective-hud" class="hidden">
+      <div class="obj-head">
+        <div class="obj-diamond"></div>
+        <div>
+          <div class="obj-tag">PRIMARY OBJECTIVE</div>
+          <div id="obj-title">RESTORE THE ENERGY GRID</div>
+        </div>
+      </div>
+      <div id="obj-sub">TERMINALS 0 / 3</div>
+      <div class="obj-target-row">
+        <span class="obj-target-label">CURRENT TARGET</span>
+        <span id="obj-target">TERMINAL A</span>
+        <span id="obj-dist">84m</span>
+      </div>
+    </div>
+
+    <!-- COMPASS (top-center) -->
+    <div id="compass" class="hidden">
+      <div class="compass-window">
+        <div class="compass-strip" id="compass-strip"></div>
+        <div class="compass-center"></div>
+        <div class="compass-obj" id="compass-obj">&#9670;</div>
+      </div>
+    </div>
+
+    <!-- KILL FEED (top-right) -->
+    <div id="killfeed"></div>
+
+    <!-- SCORE (top-right under killfeed) -->
+    <div id="score-hud" class="hidden">
+      <div id="score-value">0</div>
+      <div id="kills-value">0 KILLS</div>
+    </div>
+
+    <!-- MISSION NOTIFICATION (center-top) -->
+    <div id="notification" class="hidden"></div>
+
+    <!-- MUTE BUTTON -->
+    <button id="mute-btn" class="mute-btn" title="Mute (M)" aria-label="Toggle sound">
+      <span id="mute-icon">&#9834;</span>
+    </button>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+      <!-- BOTTOM LEFT — PLAYER STATUS -->
+      <div id="player-hud">
+        <div class="ph-top">
+          <span class="ph-name">AXIOM-7</span>
+          <span class="ph-level">LEVEL <b id="lvl-num">1</b></span>
+        </div>
+        <div class="ph-bar ph-shield">
+          <div class="ph-label">SHIELD</div>
+          <div class="bar-outer bar-shield"><div class="bar-inner bar-shield" id="shield-bar"></div></div>
+          <div class="ph-val" id="shield-text">50 / 50</div>
+        </div>
+        <div class="ph-bar ph-health">
+          <div class="ph-label">HEALTH</div>
+          <div class="bar-outer bar-health"><div class="bar-inner bar-health" id="hp-bar"></div></div>
+          <div class="ph-val" id="hp-text">100 / 100</div>
+        </div>
+        <div class="xp-outer"><div class="xp-inner" id="xp-bar"></div></div>
+      </div>
+
+      <!-- BOTTOM CENTER — ABILITY -->
+      <div id="ability-hud">
+        <div class="ability-hex">
+          <span class="ability-glyph">&#9882;</span>
+        </div>
+        <div class="ability-label">DASH</div>
+        <div class="bar-outer bar-dash"><div class="bar-inner bar-dash" id="dash-bar"></div></div>
+        <div class="ability-state" id="dash-text">READY</div>
+      </div>
+
+      <!-- BOTTOM RIGHT — WEAPON -->
+      <div id="weapon-hud">
+        <div id="weapon-name">VX-7 ENERGY RIFLE</div>
+        <div class="ammo-row">
+          <span id="ammo-cur" class="ammo-cur">24</span>
+          <span class="ammo-sep">|</span>
+          <span id="ammo-max" class="ammo-max">180</span>
+        </div>
+        <div class="weapon-sub">
+          <span class="ws-mode">AUTO</span>
+          <svg class="ws-icon" viewBox="0 0 64 24" aria-hidden="true">
+            <rect x="2" y="9" width="30" height="6" rx="1.5" />
+            <rect x="30" y="10.5" width="20" height="3" rx="1" />
+            <rect x="48" y="8" width="5" height="9" rx="1" />
+            <rect x="10" y="14" width="4" height="7" rx="1" transform="rotate(12 12 17)" />
+            <circle cx="55" cy="11" r="2.4" />
+          </svg>
+        </div>
+        <div id="reload-ind" class="hidden">RELOADING<div class="reload-bar"><div id="reload-fill"></div></div></div>
+      </div>
+    </div>
+
+    <!-- MAIN MENU -->
+    <div id="menu" class="overlay">
+      <div class="menu-inner">
+        <h1 class="title" data-text="NEON SURVIVOR">NEON&nbsp;SURVIVOR</h1>
+        <p class="subtitle">// CORE BREACH //</p>
+        <div class="menu-buttons">
+          <button class="btn btn-primary" id="btn-start">START MISSION</button>
+          <button class="btn" id="btn-how">HOW TO PLAY</button>
+          <button class="btn" id="btn-settings">SETTINGS</button>
+        </div>
+        <div class="hi-score">BEST SCORE: <span id="best-score">0</span></div>
+        <div class="version">AXIOM-7 // CORE BREACH v1.0</div>
+      </div>
+    </div>
+
+    <!-- MISSION BRIEFING -->
+    <div id="briefing" class="overlay hidden">
+      <div class="menu-inner wide">
+        <h2 class="panel-title">MISSION BRIEFING</h2>
+        <div class="brief-grid">
+          <div class="brief-row"><span class="brief-key">OPERATIVE</span><span class="brief-val">AXIOM-7</span></div>
+          <div class="brief-row"><span class="brief-key">SECTOR STATUS</span><span class="brief-val danger">COMPROMISED</span></div>
+          <div class="brief-row"><span class="brief-key">HOSTILE AI</span><span class="brief-val danger">THE NULL</span></div>
+          <div class="brief-row"><span class="brief-key">OBJECTIVE</span><span class="brief-val">RESTORE THE ENERGY GRID. BREACH THE NEURAL CORE. ELIMINATE THE NULL WARDEN. EXTRACT.</span></div>
+        </div>
+        <div class="menu-buttons">
+          <button class="btn btn-primary" id="btn-deploy">DEPLOY</button>
+          <button class="btn" id="btn-brief-back">BACK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HOW TO PLAY -->
+    <div id="how" class="overlay hidden">
+      <div class="menu-inner">
+        <h2 class="panel-title">HOW TO PLAY</h2>
+        <ul class="how-list">
+          <li><span class="key">W A S D</span> Move (relative to camera)</li>
+          <li><span class="key">MOUSE</span> Look / aim</li>
+          <li><span class="key">L-CLICK</span> Fire</li>
+          <li><span class="key">R-CLICK</span> Aim down sights</li>
+          <li><span class="key">SHIFT</span> Sprint</li>
+          <li><span class="key">SPACE</span> Dash (brief i-frames)</li>
+          <li><span class="key">E</span> Interact with terminals</li>
+          <li><span class="key">R</span> Reload</li>
+          <li><span class="key">M</span> Mute / unmute audio</li>
+          <li><span class="key">ESC</span> Pause</li>
+          <li>Activate 3 energy terminals, defend each for 30s, breach the Neural Core, kill the NULL WARDEN, reach extraction.</li>
+        </ul>
+        <button class="btn btn-primary" id="btn-how-back">BACK</button>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="settings" class="overlay hidden">
+      <div class="menu-inner">
+        <h2 class="panel-title">SETTINGS</h2>
+        <div class="settings-row">
+          <span>AUDIO</span>
+          <button class="btn small-btn" id="btn-audio-toggle">SOUND: ON</button>
+        </div>
+        <div class="settings-row">
+          <span>RENDER QUALITY</span>
+          <button class="btn small-btn" id="btn-quality">HIGH</button>
+        </div>
+        <button class="btn btn-primary" id="btn-settings-back">BACK</button>
+      </div>
+    </div>
+
+    <!-- PAUSE -->
+    <div id="pause" class="overlay hidden">
+      <div class="pause-grid">
+        <div class="menu-inner pause-panel">
+          <h1 class="title pause-title" data-text="NEON SURVIVOR">NEON&nbsp;SURVIVOR</h1>
+          <p class="subtitle">// CORE BREACH //</p>
+          <h2 class="panel-title pause-tag">PAUSED</h2>
+          <div class="menu-buttons">
+            <button class="btn btn-primary" id="btn-resume">RESUME</button>
+            <button class="btn" id="btn-restart">RESTART MISSION</button>
+            <button class="btn" id="btn-pause-how">HOW TO PLAY</button>
+            <button class="btn" id="btn-pause-settings">SETTINGS</button>
+            <button class="btn" id="btn-quit">MAIN MENU</button>
+          </div>
+        </div>
+        <div class="pause-controls">
+          <div class="pc-title">CONTROLS</div>
+          <div class="pc-row"><span class="key">WASD</span> MOVE</div>
+          <div class="pc-row"><span class="key">MOUSE</span> AIM</div>
+          <div class="pc-row"><span class="key">LMB</span> FIRE</div>
+          <div class="pc-row"><span class="key">RMB</span> ADS</div>
+          <div class="pc-row"><span class="key">SHIFT</span> SPRINT</div>
+          <div class="pc-row"><span class="key">SPACE</span> DASH</div>
+          <div class="pc-row"><span class="key">E</span> INTERACT</div>
+          <div class="pc-row"><span class="key">R</span> RELOAD</div>
+          <div class="pc-row"><span class="key">M</span> MUTE</div>
+          <div class="pc-row"><span class="key">ESC</span> PAUSE</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEVEL UP -->
+    <div id="levelup" class="overlay hidden">
+      <div class="menu-inner wide">
+        <h2 class="panel-title">LEVEL UP</h2>
+        <p class="lu-sub">// SELECT AN AUGMENT //</p>
+        <div class="cards" id="upgrade-cards"></div>
+      </div>
+    </div>
+
+    <!-- GAME OVER -->
+    <div id="gameover" class="overlay hidden">
+      <div class="menu-inner">
+        <h2 class="panel-title danger">SYSTEM FAILURE</h2>
+        <div class="go-stats">
+          <div class="go-row"><span>SCORE</span><span id="go-score">0</span></div>
+          <div class="go-row"><span>TERMINALS</span><span id="go-terminals">0 / 3</span></div>
+          <div class="go-row"><span>LEVEL</span><span id="go-level">1</span></div>
+          <div class="go-row"><span>KILLS</span><span id="go-kills">0</span></div>
+          <div class="go-row best"><span>BEST</span><span id="go-best">0</span></div>
+        </div>
+        <div class="menu-buttons">
+          <button class="btn btn-primary" id="btn-retry">RETRY</button>
+          <button class="btn" id="btn-menu">MAIN MENU</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MISSION COMPLETE -->
+    <div id="complete" class="overlay hidden">
+      <div class="menu-inner">
+        <h2 class="panel-title success">MISSION COMPLETE</h2>
+        <div class="go-stats">
+          <div class="go-row"><span>MISSION TIME</span><span id="mc-time">0:00</span></div>
+          <div class="go-row"><span>ENEMIES ELIMINATED</span><span id="mc-kills">0</span></div>
+          <div class="go-row"><span>ACCURACY</span><span id="mc-acc">0%</span></div>
+          <div class="go-row"><span>DAMAGE DEALT</span><span id="mc-dmg">0</span></div>
+          <div class="go-row best"><span>OPERATIVE LEVEL</span><span id="mc-level">1</span></div>
+        </div>
+        <div class="menu-buttons">
+          <button class="btn btn-primary" id="btn-again">PLAY AGAIN</button>
+          <button class="btn" id="btn-complete-menu">MAIN MENU</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
