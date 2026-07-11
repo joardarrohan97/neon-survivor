@@ -257,24 +257,7 @@ export class MissionManager {
         this.bossSpawned = true;
         this._bossSeq = (this._bossSeq || 0) + 1;
         const seq = this._bossSeq;
-        this.game.world.openBarrier();
-        this.difficulty = 1.4;
-        this.game.ui.setObjective('BREACH THE NEURAL CORE', 'ELIMINATE THE NULL WARDEN');
-        // ---- cinematic build-up after Terminal 3 ----
-        this.game.ui.showNotification('MISSION UPDATED', 'cyan');
-        setTimeout(() => { if (seq === this._bossSeq) this.game.ui.showNotification('POWER RESTORED', 'green'); }, 1400);
-        setTimeout(() => { if (seq === this._bossSeq) this.game.ui.showNotification('NEURAL CORE UNLOCKED', 'amber'); }, 2800);
-        // ---- warning notification + siren (then spawn the boss) ----
-        setTimeout(() => {
-          if (seq !== this._bossSeq) return;
-          this.game.ui.showNotification('WARNING — NULL WARDEN DETECTED', 'red');
-          this.game.audio.play('bossWarning');
-        }, 4100);
-        setTimeout(() => {
-          if (seq !== this._bossSeq) return;
-          this.game.enemyManager.spawnBoss();
-          this.game.audio.play('objective');
-        }, 4500);
+        this.startBossSequence(seq);
       }
     }
 
@@ -315,6 +298,35 @@ export class MissionManager {
         t.marker.scale.setScalar(1);
       }
     }
+  }
+
+  // ---- BOSS SEQUENCE: triggered once all terminals are restored ----
+  startBossSequence(seq) {
+    this.game.world.openBarrier();
+    this.difficulty = 1.4;
+    this.game.enemyManager.setBossPhase(true);
+    this.game.ui.setObjective('BREACH THE NEURAL CORE', 'ELIMINATE THE NULL WARDEN');
+    // 1. MISSION UPDATED
+    this.game.ui.showNotification('MISSION UPDATED', 'cyan');
+    // 2. Power Restored
+    setTimeout(() => { if (seq === this._bossSeq) this.game.ui.showNotification('Power Restored', 'green'); }, 1400);
+    // 3. WARNING
+    setTimeout(() => {
+      if (seq !== this._bossSeq) return;
+      this.game.ui.showNotification('WARNING', 'red');
+      this.game.audio.play('bossWarning');
+    }, 2600);
+    // 4. Unknown AI Signal
+    setTimeout(() => { if (seq === this._bossSeq) this.game.ui.showNotification('Unknown AI Signal', 'red'); }, 3400);
+    // 5. Core Chamber Unlocking
+    setTimeout(() => { if (seq === this._bossSeq) this.game.ui.showNotification('Core Chamber Unlocking', 'amber'); }, 4200);
+    // 6. NULL WARDEN ACTIVATING -> spawn the boss
+    setTimeout(() => {
+      if (seq !== this._bossSeq) return;
+      this.game.ui.showNotification('NULL WARDEN ACTIVATING', 'red');
+      this.game.enemyManager.spawnBoss();
+      this.game.audio.play('bossAppear');
+    }, 5000);
   }
 
   updateTarget(pPos) {

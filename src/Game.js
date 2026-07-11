@@ -555,6 +555,7 @@ export class Game {
     this.triggerSlowmo(2.0, 0.25);
     this.bossExplosion(boss.group.position.clone());
     this.ui.crosshairKill('NULL WARDEN ELIMINATED');
+    this.ui.showNotification('CORE SECURED', 'green');
     this.ui.addKill('boss', true);
   }
 

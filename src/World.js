@@ -58,15 +58,21 @@ export class World {
     // ---- environment dressing (props, clusters) ----
     this.buildDressing();
 
+    // ---- research-facility room framing (decorative, non-colliding) ----
+    this.buildRooms();
+
     // ---- neon signs ----
     this.buildSigns();
 
     // ---- controlled accent lights at key zones (kept modest) ----
-    this.addPointLight(-50, 6, 50, 0x19e8ff, 22);
-    this.addPointLight(50, 6, 50, 0x19e8ff, 22);
-    this.addPointLight(0, 6, -58, 0x19e8ff, 22);
+    // ---- controlled accent lights at key zones (kept modest) ----
+    this.addPointLight(-50, 6, 50, 0x19e8ff, 22);   // Terminal A room
+    this.addPointLight(50, 6, 50, 0x19e8ff, 22);    // Terminal B room
+    this.addPointLight(0, 6, -58, 0x19e8ff, 22);    // Terminal C room
     this.addPointLight(-30, 5, 30, 0x19e8ff, 16);
     this.addPointLight(30, 5, 20, 0x19e8ff, 16);
+    this.addPointLight(-30, 7, -10, 0x2bd6ff, 20);  // industrial zone
+    this.addPointLight(20, 6, 0, 0x2bd6ff, 18);     // mid storage
 
     // ---- environmental particles ----
     this.buildParticles();
@@ -76,17 +82,19 @@ export class World {
   }
 
   buildFloor() {
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x1b2748, roughness: 0.78, metalness: 0.4 });
+    // main facility floor — dark brushed metal plating
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x0f1730, roughness: 0.88, metalness: 0.5 });
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(240, 240), floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = 0;
     this.group.add(floor);
 
-    // large panel sections with subtle shade variation
-    const panelMat = new THREE.MeshStandardMaterial({ color: 0x223158, roughness: 0.68, metalness: 0.45 });
+    // tiled panel floor with subtle per-tile shade variation (instanced)
     const panelGeo = new THREE.PlaneGeometry(20, 20);
+    const panelMat = new THREE.MeshStandardMaterial({ roughness: 0.72, metalness: 0.55 });
     const dummy = new THREE.Object3D();
     const im = new THREE.InstancedMesh(panelGeo, panelMat, 100);
+    const colA = new THREE.Color(0x18224a), colB = new THREE.Color(0x202d57);
     let idx = 0;
     for (let gx = -100; gx <= 100; gx += 20) {
       for (let gz = -100; gz <= 100; gz += 20) {
@@ -94,20 +102,28 @@ export class World {
         dummy.position.set(gx + 10, 0.012, gz + 10);
         dummy.rotation.set(-Math.PI / 2, 0, 0);
         dummy.updateMatrix();
-        im.setMatrixAt(idx++, dummy.matrix);
+        im.setMatrixAt(idx, dummy.matrix);
+        im.setColorAt(idx, (Math.abs(gx) + Math.abs(gz)) % 40 === 0 ? colB : colA);
+        idx++;
       }
     }
     im.count = idx;
     im.instanceMatrix.needsUpdate = true;
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
     this.group.add(im);
     this.instanced.push(im);
 
-    // neon grid
-    const grid = new THREE.GridHelper(240, 60, 0x2bd6ff, 0x1d3f63);
+    // faint nav grid
+    const grid = new THREE.GridHelper(240, 60, 0x2bd6ff, 0x142a45);
     grid.material.transparent = true;
-    grid.material.opacity = 0.4;
+    grid.material.opacity = 0.22;
     grid.position.y = 0.02;
     this.group.add(grid);
+
+    // painted floor markings around the core (hazard + hub rings)
+    this.addFloorRing(0, 0, 11, 0xffc23a, 0.16);
+    this.addFloorRing(0, 0, 16, 0x19e8ff, 0.12);
+    this.addFloorRing(0, 0, 22, 0x123a5a, 0.10);
 
     // energy channels radiating from center toward the three terminals
     const channelMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.5 });
@@ -131,8 +147,16 @@ export class World {
     }
   }
 
+  addFloorRing(x, z, r, color, opacity) {
+    const m = new THREE.Mesh(new THREE.RingGeometry(r - 0.4, r, 72),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, 0.03, z);
+    this.group.add(m);
+  }
+
   buildWalls() {
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x141d3a, roughness: 0.6, metalness: 0.55 });
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x1b2336, roughness: 0.45, metalness: 0.82 });
     const H = ARENA, h = 9, t = 3;
     const specs = [
       [0, h / 2, -H, 2 * H, h, t],
@@ -144,12 +168,14 @@ export class World {
       const m = new THREE.Mesh(new THREE.BoxGeometry(w, hh, d), wallMat);
       m.position.set(x, y, z);
       this.group.add(m);
-      this.addEdges(m, 0x00f0ff, 0.4);
+      this.addEdges(m, 0x123a55, 0.25);
     }
-    // vertical structural supports + cyan/purple energy strips along each wall
-    const supportMat = new THREE.MeshStandardMaterial({ color: 0x121a3a, roughness: 0.5, metalness: 0.7 });
-    const stripCyan = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.85 });
-    const stripPurple = new THREE.MeshBasicMaterial({ color: 0x9b5cff, transparent: true, opacity: 0.85 });
+
+    // top light fixture band + base hazard stripe + vertical structural supports
+    const supportMat = new THREE.MeshStandardMaterial({ color: 0x141c30, roughness: 0.4, metalness: 0.85 });
+    const topBand = new THREE.MeshBasicMaterial({ color: 0xbfeaff, transparent: true, opacity: 0.5 });
+    const baseHazard = new THREE.MeshBasicMaterial({ color: 0xffc23a, transparent: true, opacity: 0.3 });
+    const panelMat = new THREE.MeshStandardMaterial({ color: 0x232d48, roughness: 0.5, metalness: 0.7 });
     const dirs = [
       { axis: 'z', fixed: -H, sign: 1, len: 2 * H, perp: 'x' },
       { axis: 'z', fixed: H, sign: -1, len: 2 * H, perp: 'x' },
@@ -163,13 +189,125 @@ export class World {
         const sup = new THREE.Mesh(new THREE.BoxGeometry(wd.axis === 'z' ? 1.2 : t + 0.4, h, wd.axis === 'z' ? t + 0.4 : 1.2), supportMat);
         sup.position.set(sx, h / 2, sz);
         this.group.add(sup);
-        const usePurple = (Math.round((p + 1000) / 16) % 4 === 0);
-        const strip = new THREE.Mesh(new THREE.BoxGeometry(wd.axis === 'z' ? 0.2 : t + 0.5, 6, wd.axis === 'z' ? t + 0.6 : 0.2),
-          usePurple ? stripPurple : stripCyan);
-        strip.position.set(sx, h / 2, sz);
+        // top light fixture band
+        const band = new THREE.Mesh(new THREE.BoxGeometry(wd.axis === 'z' ? 0.4 : t + 0.5, 0.3, wd.axis === 'z' ? t + 0.6 : 0.4), topBand);
+        band.position.set(sx, h - 0.6, sz);
+        this.group.add(band);
+        // base hazard stripe
+        const hz = new THREE.Mesh(new THREE.BoxGeometry(wd.axis === 'z' ? 2.2 : t + 0.6, 0.25, wd.axis === 'z' ? t + 0.6 : 2.2), baseHazard);
+        hz.position.set(sx, 0.5, sz);
+        this.group.add(hz);
+      }
+    }
+
+    // instanced inset wall panels for industrial texture (single draw call)
+    const pgeo = new THREE.BoxGeometry(4, 3, 0.4);
+    const pim = new THREE.InstancedMesh(pgeo, panelMat, 80);
+    const d2 = new THREE.Object3D();
+    let pi = 0;
+    const placePanel = (x, z, ry) => {
+      if (pi >= 80) return;
+      d2.position.set(x, 4.5, z);
+      d2.rotation.set(0, ry, 0);
+      d2.updateMatrix();
+      pim.setMatrixAt(pi++, d2.matrix);
+    };
+    for (let p = -H + 14; p <= H - 14; p += 26) {
+      placePanel(p, -H + 1.8, 0);
+      placePanel(p, H - 1.8, 0);
+      placePanel(-H + 1.8, p, Math.PI / 2);
+      placePanel(H - 1.8, p, Math.PI / 2);
+    }
+    pim.count = pi;
+    pim.instanceMatrix.needsUpdate = true;
+    this.group.add(pim);
+    this.instanced.push(pim);
+
+    // subtle neon section labels along the walls
+    const stripCyan = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.4 });
+    for (const wd of dirs) {
+      for (let p = -H + 24; p <= H - 24; p += 48) {
+        const sx = wd.axis === 'z' ? p : wd.fixed;
+        const sz = wd.axis === 'z' ? wd.fixed : p;
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(wd.axis === 'z' ? 0.15 : t + 0.5, 1.2, wd.axis === 'z' ? t + 0.5 : 0.15), stripCyan);
+        strip.position.set(sx, 6.5, sz);
         this.group.add(strip);
       }
     }
+  }
+
+  // ---------------------------------------------------------
+  //  RESEARCH-FACILITY ROOM FRAMING (decorative, non-colliding)
+  //  Low partitions + floor pads + overhead light fixtures that
+  //  read as terminal rooms / industrial / storage zones.
+  // ---------------------------------------------------------
+  buildRooms() {
+    // Terminal A room (corner -50,50): frame the open corner with low partitions
+    this.addRoom(-50, 50, [
+      { x: -64, z: 50, w: 1, d: 38, ry: 0 },
+      { x: -50, z: 64, w: 38, d: 1, ry: 0 },
+    ]);
+    // Terminal B room (corner 50,50)
+    this.addRoom(50, 50, [
+      { x: 64, z: 50, w: 1, d: 38, ry: 0 },
+      { x: 50, z: 64, w: 38, d: 1, ry: 0 },
+    ]);
+    // Terminal C room (south 0,-60)
+    this.addRoom(0, -60, [
+      { x: 0, z: -67, w: 52, d: 1, ry: 0 },
+      { x: -24, z: -58, w: 1, d: 26, ry: 0 },
+      { x: 24, z: -58, w: 1, d: 26, ry: 0 },
+    ]);
+
+    // industrial zone (mid-left) — pipes + pad + ceiling light
+    this.addZonePad(-30, -10, 34, 28, 0x0c1a2e, 0.4);
+    this.addCeilingLight(-30, -10, 16);
+    this.addPipeRun(-46, -16, -28, -20);
+    this.addPipeRun(-44, 4, -34, -2);
+
+    // storage / comms zone (right)
+    this.addZonePad(55, -18, 30, 26, 0x141026, 0.4);
+    this.addCeilingLight(55, -18, 16);
+
+    // central command pad under the core
+    this.addZonePad(0, 0, 30, 30, 0x0a1428, 0.4);
+    this.addCeilingLight(0, 0, 18);
+  }
+
+  addRoom(cx, cz, walls) {
+    this.addZonePad(cx, cz, 42, 42, 0x0e1c34, 0.5);
+    this.addCeilingLight(cx, cz, 14);
+    for (const w of walls) this.addPartition(w.x, w.z, w.w, w.d, w.ry);
+  }
+
+  addPartition(x, z, w, d, ry) {
+    const mat = new THREE.MeshStandardMaterial({ color: 0x161e34, roughness: 0.5, metalness: 0.75 });
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 3.6, d), mat);
+    m.position.set(x, 1.8, z);
+    m.rotation.y = ry;
+    this.group.add(m);
+    this.addEdges(m, 0x1c4a66, 0.3);
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(w * 0.96, 0.12, d * 0.96),
+      new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.35 }));
+    strip.position.set(x, 3.4, z);
+    strip.rotation.y = ry;
+    this.group.add(strip);
+  }
+
+  addZonePad(x, z, w, d, color, opacity = 0.35) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, 0.025, z);
+    this.group.add(m);
+  }
+
+  addCeilingLight(x, z, size) {
+    const panel = new THREE.Mesh(new THREE.PlaneGeometry(size, size),
+      new THREE.MeshBasicMaterial({ color: 0xcfefff, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false }));
+    panel.rotation.x = Math.PI / 2;
+    panel.position.set(x, 8.4, z);
+    this.group.add(panel);
   }
 
   buildStructures() {
@@ -596,45 +734,126 @@ export class World {
     const a = assets || this.assets;
     if (!a) return;
 
+    // Cloned cached assets — shares geometry/materials, cheap on draw calls.
     const place = (key, x, z, h, ry = 0) => {
-      if (!a.isLoaded(key)) return;
+      if (!a.isLoaded(key)) return null;
       const m = a.clone(key);
-      if (!m) return;
+      if (!m) return null;
       fitToGround(m, h);
       m.rotation.y = ry;
       m.position.set(x, 0, z);
+      m.userData.assetKey = key;
       this.group.add(m);
+      return m;
     };
 
-    // ---- combat cover area ----
-    place('crateLarge', 8, 40, 2.0, 0.3);
-    place('crate', 12, 42, 1.2, -0.2);
-    place('barrel1', 4, 38, 1.6, 0);
+    // ===================== TERMINAL A ROOM (-50,50) =====================
+    // locker bank facing the room interior
+    place('locker', -60, 42, 2.4, Math.PI / 2);
+    place('locker', -60, 48, 2.4, Math.PI / 2);
+    place('locker', -60, 54, 2.4, Math.PI / 2);
+    // shelving / storage racks
+    place('shelvesWT', -52, 44, 3.2, 0.1);
+    place('shelvesWS', -52, 54, 2.6, -0.2);
+    // crates (stacked cover)
+    place('crateLarge', -46, 52, 2.2, 0.3);
+    place('crate', -44, 48, 1.3, -0.2);
+    place('crateTarp', -48, 44, 1.6, 0.4);
+    // barrels
+    place('barrel1', -42, 52, 1.6, 0);
+    place('barrel2', -42, 47, 1.6, 0);
+    // control consoles + operator chair
+    place('deskM', -50, 58, 1.4, Math.PI);
+    place('deskL', -44, 58, 1.6, Math.PI * 0.9);
+    place('chair', -50, 60, 1.0, Math.PI);
+    // supply storage
+    place('ammoClosed', -46, 58, 1.2, 0);
+    place('chest', -54, 58, 1.2, 0.3);
+    // roof comms dish
+    place('satellite', -60, 60, 3.0, 0);
 
-    // ---- industrial area ----
-    place('locker', 42, 22, 2.4, 0.5);
-    place('shelves', 46, 20, 3.0, -0.3);
-    place('barrel2', 38, 24, 1.6, 0);
+    // ===================== TERMINAL B ROOM (50,50) =====================
+    place('locker', 60, 42, 2.4, -Math.PI / 2);
+    place('locker', 60, 48, 2.4, -Math.PI / 2);
+    place('locker', 60, 54, 2.4, -Math.PI / 2);
+    place('shelvesWT', 52, 44, 3.2, -0.1);
+    place('shelvesWS', 52, 54, 2.6, 0.2);
+    place('crateLarge', 46, 52, 2.2, -0.3);
+    place('crate', 44, 48, 1.3, 0.2);
+    place('crateTarp', 48, 44, 1.6, -0.4);
+    place('barrel1', 42, 52, 1.6, 0);
+    place('barrel2', 42, 47, 1.6, 0);
+    place('deskM', 50, 58, 1.4, 0);
+    place('deskL', 44, 58, 1.6, -Math.PI * 0.9);
+    place('chair', 50, 60, 1.0, 0);
+    place('ammoClosed', 46, 58, 1.2, 0);
+    place('chest', 54, 58, 1.2, -0.3);
+    place('satellite', 60, 60, 3.0, 0);
 
-    // ---- terminal A support area ----
-    place('crate', -30, 38, 1.2, 0.2);
-    place('chest', -34, 40, 1.2, 0.4);
-    place('satellite', -44, 36, 3.0, 0);
+    // ===================== TERMINAL C ROOM (0,-60) =====================
+    place('locker', -18, -58, 2.4, -Math.PI / 2);
+    place('locker', -18, -62, 2.4, -Math.PI / 2);
+    place('shelvesWS', 16, -58, 2.6, 0.2);
+    place('shelvesWT', 16, -62, 3.2, -0.2);
+    place('crateLarge', 0, -54, 2.2, 0.2);
+    place('crate', -6, -58, 1.3, 0.3);
+    place('crateTarp', 6, -54, 1.6, -0.3);
+    place('barrel1', -10, -62, 1.6, 0);
+    place('barrel2', 10, -62, 1.6, 0);
+    place('deskM', 0, -50, 1.4, 0);
+    place('chair', 0, -48, 1.0, 0);
+    place('ammoClosed', -6, -50, 1.2, 0);
+    place('chest', 6, -50, 1.2, 0.3);
+    place('satellite', 18, -64, 3.0, 0);
 
-    // ---- terminal B support area ----
-    place('crate', 30, 38, 1.2, -0.2);
-    place('chest', 34, 40, 1.2, -0.4);
+    // ===================== INDUSTRIAL ZONE (-30,-10) =====================
+    place('locker', -44, 6, 2.4, 0.3);
+    place('shelvesWS', -42, -2, 3.0, 0.4);
+    place('shelvesWT', -46, -10, 3.2, -0.3);
+    place('crateLarge', -34, -14, 2.2, 0.3);
+    place('crate', -30, -6, 1.3, -0.2);
+    place('crateTarp', -38, -10, 1.6, 0.4);
+    place('barrel1', -28, -16, 1.6, 0);
+    place('barrel2', -40, 2, 1.6, 0);
+    place('deskM', -44, -12, 1.4, 0.5);   // process console
+    place('chair', -44, -10, 1.0, 0.5);
+    place('ammoClosed', -32, 2, 1.2, 0);
+    place('chest', -36, 4, 1.2, 0.3);
+    place('satellite', -50, -20, 3.0, 0.4); // sensor mast
 
-    // ---- terminal C support area ----
-    place('crate', 0, -38, 1.2, 0.1);
-    place('shelves', -6, -40, 3.0, 0.3);
-    place('barrel1', 6, -36, 1.6, 0);
+    // ===================== STORAGE / COMMS ZONE (55,-18) =====================
+    place('crateLarge', 50, -20, 2.2, 0.3);
+    place('crate', 54, -16, 1.3, -0.2);
+    place('crateTarp', 58, -22, 1.6, 0.4);
+    place('crateLarge', 60, -14, 2.2, -0.3);
+    place('shelvesWT', 62, -8, 3.2, 0.2);
+    place('shelvesWS', 62, -16, 2.6, -0.2);
+    place('locker', 64, -24, 2.4, -0.3);
+    place('barrel1', 48, -24, 1.6, 0);
+    place('barrel2', 56, -26, 1.6, 0);
+    place('ammoClosed', 52, -26, 1.2, 0);
+    place('chest', 58, -12, 1.2, 0.3);
+    place('satellite', 66, -30, 3.0, 0);
 
-    // ---- scattered dressing (kept clear of spawn / core / extraction) ----
-    place('barrel2', -20, 10, 1.6, 0);
-    place('crateLarge', 20, 0, 2.0, 0.2);
-    place('locker', -50, 10, 2.4, -0.3);
-    place('chest', 50, 10, 1.2, 0.3);
+    // ===================== SCATTERED COVER / DRESSING =====================
+    // (kept clear of spawn 0,60 / core 0,0 / health-pickup points)
+    place('crateLarge', 12, 18, 2.0, 0.2);
+    place('crate', 16, 16, 1.3, -0.2);
+    place('barrel1', 8, 22, 1.6, 0);
+    place('locker', -12, -28, 2.4, 0.3);
+    place('shelvesWS', -12, -32, 3.0, -0.2);
+    place('crate', -8, -34, 1.3, 0.3);
+    place('barrel2', -16, -26, 1.6, 0);
+    place('locker', 34, -28, 2.4, -0.3);
+    place('crate', 28, -32, 1.3, 0.2);
+    place('ammoClosed', 32, -26, 1.2, 0);
+    place('deskM', -42, 32, 1.4, 0.5);
+    place('chair', -42, 30, 1.0, 0.5);
+    place('crate', -38, 28, 1.3, -0.2);
+    place('satellite', -64, -40, 3.0, 0.2);
+    place('satellite', 64, -40, 3.0, -0.2);
+    place('barrel1', 22, -40, 1.6, 0);
+    place('crateTarp', -22, 10, 1.6, 0.3);
   }
 
 }

@@ -13,6 +13,11 @@ export class EnemyManager {
     this.enemies = [];
     this.boss = null;
     this.difficulty = 1;
+    this.bossPhase = false;
+  }
+
+  setBossPhase(active) {
+    this.bossPhase = !!active;
   }
 
   spawn(type, position) {
@@ -24,6 +29,7 @@ export class EnemyManager {
   }
 
   spawnAtRandom(type) {
+    if (this.bossPhase) return null; // normal spawning paused during the boss fight
     const player = this.game.player;
     let x, z, tries = 0;
     do {
@@ -122,5 +128,6 @@ export class EnemyManager {
     for (const e of this.enemies) this.scene.remove(e.group);
     this.enemies.length = 0;
     if (this.boss) { this.scene.remove(this.boss.group); this.boss = null; }
+    this.bossPhase = false;
   }
 }
