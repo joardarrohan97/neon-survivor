@@ -46,6 +46,7 @@ export class EnemyManager {
   spawnBoss() {
     if (this.boss) return;
     const b = new Boss(new THREE.Vector3(0, 0, 0), this.scene, this.game);
+    b.name = 'THE NULL WARDEN';
     this.boss = b;
     this.game.audio.play('bossAppear');
     this.game.addShake(8);

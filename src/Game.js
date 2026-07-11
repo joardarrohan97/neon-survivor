@@ -42,6 +42,9 @@ export class Game {
     this.shake = 0;
     this.shakeMax = 1.1;
     this.camRecoil = 0;       // decaying camera recoil impulse
+    this.timeScale = 1;        // simulated-time multiplier (slow-mo on boss death)
+    this.slowmoTime = 0;
+    this.slowmoScale = 0.25;
     this.introT = 0;          // opening cinematic timer
     this.introSpawnT = 0;
     this.pendingIntroSpawns = 0;
@@ -247,6 +250,9 @@ export class Game {
     this.pitch = 0.15;
     this.shake = 0;
     this.camRecoil = 0;
+    this.timeScale = 1;
+    this.slowmoTime = 0;
+    this.slowmoScale = 0.25;
     this.resetHealthPickups();
     this.resetAmmoPickups();
     this.introT = 0;
@@ -321,6 +327,7 @@ export class Game {
     if (document.pointerLockElement) document.exitPointerLock();
     this.firing = false;
     this.audio.play('missionComplete');
+    this.ui.showNotification('MISSION COMPLETE', 'green');
     const acc = this.shotsFired > 0 ? Math.round((this.shotsHit / this.shotsFired) * 100) : 0;
     const t = Math.floor(this.elapsed);
     const time = Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
@@ -545,8 +552,24 @@ export class Game {
     this.kills++;
     this.audio.play('bossDeath');
     this.addShake(12);
+    this.triggerSlowmo(2.0, 0.25);
+    this.bossExplosion(boss.group.position.clone());
     this.ui.crosshairKill('NULL WARDEN ELIMINATED');
     this.ui.addKill('boss', true);
+  }
+
+  triggerSlowmo(duration, scale) {
+    this.slowmoTime = duration;
+    this.slowmoScale = scale;
+  }
+
+  // ---- boss death cinematic: explosion flashes + debris burst ----
+  bossExplosion(pos) {
+    this.spawnImpact(pos.clone().setY(2), 0xffffff, 12);
+    for (let i = 0; i < 10; i++) {
+      const off = new THREE.Vector3((Math.random() - 0.5) * 10, 1 + Math.random() * 5, (Math.random() - 0.5) * 10);
+      this.spawnImpact(pos.clone().add(off), i % 2 ? 0xff3b57 : 0x9b5cff, 3 + Math.random() * 2);
+    }
   }
 
   onPlayerHit(srcPos) {
@@ -719,13 +742,18 @@ export class Game {
     requestAnimationFrame(this.loop);
     let dt = this.clock3.getDelta();
     if (dt > 0.05) dt = 0.05; // cap to avoid physics jumps after tab inactive
-    this.elapsed += dt;
+    let simDt = dt;
+    if (this.slowmoTime > 0) {
+      this.slowmoTime -= dt;
+      simDt = dt * this.slowmoScale;
+    }
+    this.elapsed += simDt;
     this.clock = this.elapsed;
 
-    if (this.state === 'playing') this.simulate(dt);
+    if (this.state === 'playing') this.simulate(simDt);
 
-    this.updateCamera(dt);
-    this.updateTelegraphs(dt);
+    this.updateCamera(simDt);
+    this.updateTelegraphs(simDt);
     if (this.player && this.weapon && this.mission && this.enemyManager) {
       const moving = this.state === 'playing' &&
         (this.keys.has('KeyW') || this.keys.has('KeyA') || this.keys.has('KeyS') || this.keys.has('KeyD'));
@@ -745,7 +773,7 @@ export class Game {
         camera: this.camera,
       });
     }
-    this.updateImpacts(dt);
+    this.updateImpacts(simDt);
     this.renderer.render(this.scene, this.camera);
   }
 

@@ -185,6 +185,7 @@ export class MissionManager {
     this.phase = 'terminals';
     this.terminalsRestored = 0;
     this.bossSpawned = false;
+    this._bossSeq = (this._bossSeq || 0) + 1; // invalidate any pending cinematic timeout
     this.activeDefense = null;
     this.defenseSpawnTimer = 0;
     this.difficulty = 1;
@@ -254,12 +255,26 @@ export class MissionManager {
       if (this.terminalsRestored >= 3 && !this.bossSpawned) {
         this.phase = 'boss';
         this.bossSpawned = true;
+        this._bossSeq = (this._bossSeq || 0) + 1;
+        const seq = this._bossSeq;
         this.game.world.openBarrier();
-        this.game.enemyManager.spawnBoss();
         this.difficulty = 1.4;
         this.game.ui.setObjective('BREACH THE NEURAL CORE', 'ELIMINATE THE NULL WARDEN');
-        this.game.ui.showNotification('CORE UNLOCKED', 'amber');
-        this.game.audio.play('objective');
+        // ---- cinematic build-up after Terminal 3 ----
+        this.game.ui.showNotification('MISSION UPDATED', 'cyan');
+        setTimeout(() => { if (seq === this._bossSeq) this.game.ui.showNotification('POWER RESTORED', 'green'); }, 1400);
+        setTimeout(() => { if (seq === this._bossSeq) this.game.ui.showNotification('NEURAL CORE UNLOCKED', 'amber'); }, 2800);
+        // ---- warning notification + siren (then spawn the boss) ----
+        setTimeout(() => {
+          if (seq !== this._bossSeq) return;
+          this.game.ui.showNotification('WARNING — NULL WARDEN DETECTED', 'red');
+          this.game.audio.play('bossWarning');
+        }, 4100);
+        setTimeout(() => {
+          if (seq !== this._bossSeq) return;
+          this.game.enemyManager.spawnBoss();
+          this.game.audio.play('objective');
+        }, 4500);
       }
     }
 

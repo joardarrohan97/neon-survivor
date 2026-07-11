@@ -113,6 +113,7 @@ export class AudioManager {
       hover:        () => this.tone({ type: 'sine', freq: 620, dur: 0.05, vol: 0.05 }),
       click:        () => this.tone({ type: 'square', freq: 480, freqEnd: 720, dur: 0.08, vol: 0.12 }),
       bossSpawnDrone: () => this.tone({ type: 'sawtooth', freq: 200, freqEnd: 90, dur: 0.3, vol: 0.16, filterType: 'lowpass', filterFreq: 1200 }),
+      bossWarning:   () => this.tone({ type: 'sawtooth', freq: 440, freqEnd: 1320, dur: 0.7, vol: 0.2, filterType: 'bandpass', filterFreq: 1500, filterQ: 4 }),
       ammoPickup:    () => { this.tone({ type: 'triangle', freq: 660, freqEnd: 990, dur: 0.1, vol: 0.12 }); this.tone({ type: 'square', freq: 1320, dur: 0.05, vol: 0.06 }); },
     };
   }

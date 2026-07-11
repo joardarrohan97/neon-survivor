@@ -537,8 +537,9 @@ export class Boss {
     this.group.position.copy(position);
     scene.add(this.group);
     this.isBoss = true;
+    this.name = 'THE NULL WARDEN';
 
-    this.maxHealth = 2600;
+    this.maxHealth = 5000;
     this.health = this.maxHealth;
     this.radius = 3;
     this.dead = false;
@@ -558,6 +559,8 @@ export class Boss {
     this.wobble = 0;
     this.ringRot = 0;
     this.spawnCd = 10;
+    this.phase = 1;
+    this._deathParticles = [];
 
     this.build();
   }
@@ -617,8 +620,10 @@ export class Boss {
     if (this.dead) return;
     this.dead = true;
     this.dying = true;
-    this.deathTimer = 2.0;
+    this.deathTimer = 3.0;
+    if (this._tele) { this.game.removeTelegraph(this._tele); this._tele = null; }
     this.game.onBossKilled(this);
+    this.spawnDeathBurst();
   }
 
   update(dt, player) {
@@ -627,14 +632,18 @@ export class Boss {
     this.ring.rotation.z = this.ringRot;
     this.shoulderL.position.y = 4.6 + Math.sin(this.wobble) * 0.3;
     this.shoulderR.position.y = 4.6 - Math.sin(this.wobble) * 0.3;
+    this.core.material.emissiveIntensity = 1.8 + Math.sin(this.wobble * 1.5) * 0.5;
     if (this.hitFlash > 0) {
       this.hitFlash -= dt;
       const f = Math.max(0, this.hitFlash / 0.1);
       for (const m of this.glowMats) m.emissiveIntensity = 1.8 + f * 3;
     }
+
     if (this.dying) {
       this.deathTimer -= dt;
-      this.core.material.emissiveIntensity = 1.8 + (1 - this.deathTimer / 2) * 5;
+      const k = 1 - Math.max(0, this.deathTimer) / 3;
+      this.core.material.emissiveIntensity = 1.8 + k * 7;
+      this._updateDeathParticles(dt);
       return;
     }
 
@@ -644,24 +653,41 @@ export class Boss {
     const ang = Math.atan2(flat.x, flat.z);
     this.group.rotation.y = ang;
 
+    // ---- three combat phases by remaining health ----
+    const frac = this.health / this.maxHealth;
+    const newPhase = frac > 0.66 ? 1 : frac > 0.33 ? 2 : 3;
+    if (newPhase !== this.phase) { this.phase = newPhase; this.onPhaseChange(newPhase); }
+
     if (this.state === 'intro') {
       this.stateTimer -= dt;
       if (this.stateTimer <= 0) { this.state = 'idle'; this.stateTimer = 2.0; }
       return;
     }
 
-    const desired = 26;
+    const desired = this.phase === 3 ? 18 : 26;
     if (dist > desired + 6) this.group.position.addScaledVector(flat, 3 * dt);
     else if (dist < desired - 6) this.group.position.addScaledVector(flat, -3 * dt);
 
+    const speedMul = this.phase === 3 ? 1.6 : this.phase === 2 ? 1.3 : 1;
+
     switch (this.state) {
       case 'idle': {
-        this.stateTimer -= dt;
+        this.stateTimer -= dt * speedMul;
         if (this.stateTimer <= 0) {
           const r = Math.random();
-          if (r < 0.4) { this.state = 'radial'; this.volleys = 3; this.volleyTimer = 0; }
-          else if (r < 0.75) { this.state = 'charge-telegraph'; this.telegraph = 1.1; this.chargeDir.copy(flat); this._tele = this.game.spawnTelegraph(this.group.position.clone().setY(0), 6, 1.1); }
-          else { this.state = 'shockwave'; this.telegraph = 1.0; this._tele = this.game.spawnTelegraph(this.group.position.clone().setY(0), 16, 1.0); }
+          const cannonChance = this.phase === 3 ? 0.4 : this.phase === 2 ? 0.22 : 0;
+          if (r < cannonChance) {
+            this.state = 'cannon-telegraph'; this.telegraph = 1.2;
+            this._tele = this.game.spawnTelegraph(this.group.position.clone().setY(0), 10, 1.2);
+          } else if (r < cannonChance + 0.33) {
+            this.state = 'radial'; this.volleys = this.phase === 3 ? 4 : 3; this.volleyTimer = 0;
+          } else if (r < cannonChance + 0.66) {
+            this.state = 'charge-telegraph'; this.telegraph = 1.1; this.chargeDir.copy(flat);
+            this._tele = this.game.spawnTelegraph(this.group.position.clone().setY(0), 6, 1.1);
+          } else {
+            this.state = 'shockwave'; this.telegraph = 1.0;
+            this._tele = this.game.spawnTelegraph(this.group.position.clone().setY(0), 16, 1.0);
+          }
         }
         break;
       }
@@ -682,7 +708,7 @@ export class Boss {
       }
       case 'charging': {
         this.chargeTime -= dt;
-        const spd = 38;
+        const spd = 38 * speedMul;
         this.group.position.addScaledVector(this.chargeDir, spd * dt);
         const rr = this.radius + player.radius + 0.5;
         if (dist < rr && this._chargeHit !== true) {
@@ -703,12 +729,21 @@ export class Boss {
         }
         break;
       }
+      case 'cannon-telegraph': {
+        this.telegraph -= dt;
+        if (this.telegraph <= 0) {
+          if (this._tele) { this.game.removeTelegraph(this._tele); this._tele = null; }
+          this.fireCannon(player);
+          this.state = 'idle'; this.stateTimer = 2.0;
+        }
+        break;
+      }
     }
 
     this.spawnCd -= dt;
     if (this.spawnCd <= 0) {
-      this.spawnCd = 12;
-      this.game.enemyManager.spawnBossDrones(3);
+      this.spawnCd = this.phase === 3 ? 8 : this.phase === 2 ? 10 : 12;
+      this.game.enemyManager.spawnBossDrones(this.phase === 3 ? 5 : 3);
     }
   }
 
@@ -722,6 +757,59 @@ export class Boss {
       this.game.projectiles.spawnEnemyProjectile(from, dir, 16, 14, RED, 0.35);
     }
     this.game.audio.play('bossAttack');
+  }
+
+  // ---- heavy cannon: slow, high-damage aimed burst (mag. violet) ----
+  fireCannon(player) {
+    const from = this.getMuzzleWorld(new THREE.Vector3());
+    const to = player.group.position.clone().setY(1.2);
+    const baseDir = new THREE.Vector3().subVectors(to, from).normalize();
+    const burst = this.phase === 3 ? 3 : 1;
+    for (let i = 0; i < burst; i++) {
+      const spread = (i - (burst - 1) / 2) * 0.14;
+      const dir = baseDir.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), spread);
+      this.game.projectiles.spawnEnemyProjectile(from, dir, 26, 42, 0xff2bd6, 1.1);
+    }
+    this.game.audio.play('bossAttack');
+    this.game.addShake(4);
+  }
+
+  // ---- phase transition: shockwave feedback + enrage announce ----
+  onPhaseChange(p) {
+    this.game.addShake(p === 3 ? 10 : 6);
+    this.game.audio.play('bossAttack');
+    this.game.spawnImpact(this.group.position.clone().setY(0.3), 0x9b5cff, 9);
+    if (p === 3) this.game.ui.showNotification('NULL WARDEN ENRAGED', 'red');
+    else this.game.ui.showNotification('NULL WARDEN — PHASE ' + p, 'amber');
+  }
+
+  // ---- death particle burst (explosion debris) ----
+  spawnDeathBurst() {
+    for (let i = 0; i < 70; i++) {
+      const roll = Math.random();
+      const color = roll < 0.5 ? 0xff3b57 : (roll < 0.8 ? 0x9b5cff : 0xffd23a);
+      const f = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3, 0.3, 0.3),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 }));
+      f.position.set((Math.random() - 0.5) * 3, 2 + Math.random() * 4, (Math.random() - 0.5) * 3);
+      const vel = new THREE.Vector3((Math.random() - 0.5) * 16, 5 + Math.random() * 14, (Math.random() - 0.5) * 16);
+      this.group.add(f);
+      this._deathParticles.push({ mesh: f, vel, life: 1.8 + Math.random() * 1.4, max: 3.2 });
+    }
+  }
+
+  _updateDeathParticles(dt) {
+    for (let i = this._deathParticles.length - 1; i >= 0; i--) {
+      const f = this._deathParticles[i];
+      f.life -= dt;
+      f.vel.y -= 14 * dt;
+      f.mesh.position.addScaledVector(f.vel, dt);
+      f.mesh.rotation.x += dt * 6; f.mesh.rotation.z += dt * 5;
+      const s = Math.max(0.05, f.life / f.max);
+      f.mesh.scale.setScalar(s);
+      f.mesh.material.opacity = Math.max(0, f.life / f.max);
+      if (f.life <= 0) { this.group.remove(f.mesh); this._deathParticles.splice(i, 1); }
+    }
   }
 
   getCharging() { return this.state === 'charge-telegraph' || this.state === 'shockwave'; }
