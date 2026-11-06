@@ -12,7 +12,6 @@ export class Weapon {
     this.mount = mount;
     this.group = new THREE.Group();
     mount.add(this.group);
-    this.group.rotation.x = this.baseRotX;
 
     this.baseMag = 24;
     this.ammo = this.baseMag;
@@ -29,6 +28,7 @@ export class Weapon {
     this.muzzleFlashTimer = 0;
     this.adsBlend = 0;
     this.baseRotX = 1.3; // counter-rotates the arm's forward pose so the barrel is horizontal
+    this.group.rotation.x = this.baseRotX;
 
     this.build();
   }
