@@ -311,6 +311,21 @@ export class Game {
     if (p) p.classList.add('hidden');
     const menu = document.getElementById('menu');
     if (menu) menu.classList.remove('hidden');
+    this.refreshMenuBests();
+  }
+
+  // Refresh the main-menu best score / time / rank from saved data.
+  refreshMenuBests() {
+    try {
+      const num = (k) => parseInt(localStorage.getItem(k) || '0', 10) || 0;
+      const t = num('cb_best_time');
+      const bs = document.getElementById('best-score');
+      const bt = document.getElementById('best-time');
+      const br = document.getElementById('best-rank');
+      if (bs) bs.textContent = Math.max(num('cb_best_score'), num('cb_best'));
+      if (bt) bt.textContent = Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
+      if (br) br.textContent = localStorage.getItem('cb_best_rank') || 'D';
+    } catch (e) {}
   }
 
   toggleMute() {
@@ -668,6 +683,7 @@ export class Game {
       this.impactPool.push(m);
     }
     m.active = true;
+    m.base = size;
     m.life = m.max;
     m.mesh.visible = true;
     m.mesh.position.copy(pos);

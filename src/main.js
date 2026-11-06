@@ -58,15 +58,15 @@ function boot() {
     $('btn-restart').addEventListener('click', () => game.restart());
     $('btn-pause-how').addEventListener('click', () => openSub('how'));
     $('btn-pause-settings').addEventListener('click', () => openSub('settings'));
-    $('btn-quit').addEventListener('click', () => { hide('pause'); game.toMenu(); hide('menu'); });
+    $('btn-quit').addEventListener('click', () => { hide('pause'); game.toMenu(); });
 
     // ---- GAME OVER ----
     $('btn-retry').addEventListener('click', () => game.restart());
-    $('btn-menu').addEventListener('click', () => { hide('gameover'); show('menu'); });
+    $('btn-menu').addEventListener('click', () => { game.toMenu(); });
 
     // ---- MISSION COMPLETE ----
     $('btn-again').addEventListener('click', () => game.restart());
-    $('btn-complete-menu').addEventListener('click', () => { game.toMenu(); show('menu'); });
+    $('btn-complete-menu').addEventListener('click', () => { game.toMenu(); });
 
     // ---- MUTE ----
     $('mute-btn').addEventListener('click', () => game.toggleMute());
